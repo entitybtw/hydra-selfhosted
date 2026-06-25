@@ -11,7 +11,7 @@ Self-hosted API for [Hydra Launcher](https://github.com/hydralauncher/hydra) —
 ```bash
 cp .env.example .env
 # Edit .env — set JWT_SECRET to a random string
-docker compose up -d
+docker compose up -d --build
 ```
 
 API will be available at `http://localhost:3000`.
