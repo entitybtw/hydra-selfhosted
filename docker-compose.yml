@@ -1,0 +1,11 @@
+services:
+  api:
+    build: ./api
+    ports:
+      - "${PORT:-3000}:3000"
+    volumes:
+      - ./data:/data
+    environment:
+      - JWT_SECRET=${JWT_SECRET:-change-me}
+      - PORT=${PORT:-3000}
+    restart: unless-stopped
