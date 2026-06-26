@@ -75,8 +75,21 @@ function page(title: string, body: string) {
   return `<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${h(title)} — Hydra Self-Hosted</title><style>${CSS}</style></head><body>${body}</body></html>`;
 }
 
+function tokenGatePage(error?: string) {
+  return page("Access", `
+    <div class="card">
+      <h1>⬡ Hydra Self-Hosted</h1>
+      <h2>Enter instance token to continue</h2>
+      ${error ? `<div class="err">${h(error)}</div>` : ""}
+      <form method="POST" action="/web/gate">
+        <div class="field"><label>Instance Token</label><input name="instance_token" type="password" autofocus required></div>
+        <button type="submit">Continue</button>
+      </form>
+    </div>
+  `);
+}
+
 function loginPage(error?: string) {
-  const instanceToken = process.env.INSTANCE_TOKEN;
   return page("Sign in", `
     <div class="card">
       <h1>⬡ Hydra Self-Hosted</h1>
@@ -85,7 +98,6 @@ function loginPage(error?: string) {
       <form method="POST" action="/web/login">
         <div class="field"><label>Username</label><input name="username" autocomplete="username" required autofocus></div>
         <div class="field"><label>Password</label><input name="password" type="password" autocomplete="current-password" required></div>
-        ${instanceToken ? `<div class="field"><label>Instance Token</label><input name="instance_token" type="password" placeholder="Required to register"></div>` : ""}
         <div class="row">
           <button type="submit" name="action" value="login">Sign in</button>
           <button type="submit" name="action" value="register" class="btn-ghost">Register</button>
@@ -180,27 +192,42 @@ function getUserFromCookie(req: FastifyRequest): DbUser | null {
 }
 
 export async function webRoutes(app: FastifyInstance) {
-  // Landing / login page
+  // Landing — show token gate if INSTANCE_TOKEN is set, else login directly
   app.get("/", async (req: FastifyRequest, reply: FastifyReply) => {
     const user = getUserFromCookie(req);
     if (user) return reply.redirect("/web/dashboard");
+    const instanceToken = process.env.INSTANCE_TOKEN;
+    if (instanceToken) {
+      const gate = (req as any).cookies?.["gate_ok"];
+      if (gate !== "1") return reply.type("text/html").send(tokenGatePage());
+    }
     return reply.type("text/html").send(loginPage());
+  });
+
+  // Token gate handler
+  app.post("/web/gate", {
+    config: { rawBody: true },
+  }, async (req: FastifyRequest<{ Body: Record<string, string> }>, reply: FastifyReply) => {
+    const instanceToken = process.env.INSTANCE_TOKEN;
+    if (!instanceToken) return reply.redirect("/");
+    if (req.body?.instance_token !== instanceToken) {
+      return reply.type("text/html").send(tokenGatePage("Invalid instance token."));
+    }
+    return reply
+      .setCookie("gate_ok", "1", { path: "/", httpOnly: true, maxAge: 60 * 60 * 24 * 7 })
+      .redirect("/");
   });
 
   // Login / register form handler
   app.post("/web/login", {
     config: { rawBody: true },
   }, async (req: FastifyRequest<{ Body: Record<string, string> }>, reply: FastifyReply) => {
-    const { username, password, action, instance_token } = req.body ?? {};
+    const { username, password, action } = req.body ?? {};
 
     if (action === "register") {
-      const instanceToken = process.env.INSTANCE_TOKEN;
-      if (instanceToken && instance_token !== instanceToken) {
-        return reply.type("text/html").send(loginPage("Invalid instance token."));
-      }
+      if (!username || !password) return reply.type("text/html").send(loginPage("Username and password required."));
       const existing = db.prepare("SELECT id FROM users WHERE username = ?").get(username);
       if (existing) return reply.type("text/html").send(loginPage("Username already taken."));
-      if (!username || !password) return reply.type("text/html").send(loginPage("Username and password required."));
 
       const id = crypto.randomUUID();
       db.prepare("INSERT INTO users (id, username, password_hash, display_name) VALUES (?,?,?,?)")
