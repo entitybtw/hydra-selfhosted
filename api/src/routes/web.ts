@@ -12,6 +12,7 @@ interface DbUser {
   profile_image_url: string | null;
   steam_id: string | null;
   steam_api_key: string | null;
+  accent_color: string | null;
   created_at: number;
 }
 
@@ -73,8 +74,8 @@ const CSS = `
   .warn{background:#1e1a00;border:1px solid #5a4a00;border-radius:4px;padding:8px 12px;font-size:12px;color:#c8a040;margin-bottom:14px}
 `;
 
-function page(title: string, body: string) {
-  return `<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${h(title)} — Hydra Self-Hosted</title><style>${CSS}</style></head><body>${body}</body></html>`;
+function page(title: string, body: string, accent = "#7b68ee") {
+  return `<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${h(title)} — Hydra Self-Hosted</title><style>${CSS.replace(/var\(--accent\)/g, "VAR_ACCENT").replace(/VAR_ACCENT/g, accent)}</style></head><body>${body}</body></html>`;
 }
 
 function tokenGatePage(error?: string) {
@@ -88,7 +89,7 @@ function tokenGatePage(error?: string) {
         <button type="submit">Continue</button>
       </form>
     </div>
-  `);
+  `, "#e0e0e0");
 }
 
 function loginPage(error?: string) {
@@ -107,7 +108,7 @@ function loginPage(error?: string) {
       </form>
       <p class="meta">This is a Hydra Launcher self-hosted instance</p>
     </div>
-  `);
+  `, "#e0e0e0");
 }
 
 function tabsHtml(hydraGames: DbGame[], steamGames: DbGame[], hasSteam: boolean) {
@@ -149,6 +150,7 @@ function tabsHtml(hydraGames: DbGame[], steamGames: DbGame[], hasSteam: boolean)
 }
 
 function dashboardPage(user: DbUser, games: DbGame[], msg?: string, msgType: "ok"|"err" = "ok") {
+  const accent = user.accent_color || "#7b68ee";
   const totalHours = Math.floor(games.reduce((s, g) => s + g.play_time_in_seconds, 0) / 3600);
   const hydraGames = [...games].filter(g => g.shop !== "steam" || !user.steam_id)
     .sort((a, b) => b.play_time_in_seconds - a.play_time_in_seconds);
@@ -165,6 +167,7 @@ function dashboardPage(user: DbUser, games: DbGame[], msg?: string, msgType: "ok
       <form method="POST" action="/web/profile">
         <div class="field"><label>Display name</label><input name="display_name" value="${h(user.display_name)}" maxlength="64"></div>
         <div class="field"><label>Bio</label><textarea name="bio" maxlength="200">${h(user.bio)}</textarea></div>
+        <div class="field"><label>Accent color</label><div style="display:flex;gap:8px;align-items:center"><input type="color" name="accent_color" value="${h(accent)}" style="width:40px;height:32px;padding:2px;cursor:pointer"><input name="accent_color_hex" value="${h(accent)}" maxlength="7" style="flex:1" placeholder="#7b68ee"></div></div>
         <button type="submit">Save profile</button>
       </form>
 
@@ -189,10 +192,11 @@ function dashboardPage(user: DbUser, games: DbGame[], msg?: string, msgType: "ok
         <a href="/web/logout" style="font-size:12px;color:var(--sub)">Sign out</a>
       </div>
     </div>
-  `);
+  `, accent);
 }
 
 function publicProfilePage(user: DbUser, games: DbGame[]) {
+  const accent = user.accent_color || "#7b68ee";
   const totalHours = Math.floor(games.reduce((s, g) => s + g.play_time_in_seconds, 0) / 3600);
   const hydraGames = [...games].filter(g => g.shop !== "steam" || !user.steam_id)
     .sort((a, b) => b.play_time_in_seconds - a.play_time_in_seconds);
@@ -205,14 +209,14 @@ function publicProfilePage(user: DbUser, games: DbGame[]) {
       <h1>⬡ ${h(user.display_name || user.username)}</h1>
       <h2>@${h(user.username)}${user.bio ? ` · ${h(user.bio)}` : ""}</h2>
       <div style="display:flex;gap:24px;margin:16px 0;font-size:13px">
-        <div><span style="color:var(--accent);font-size:18px;font-weight:bold">${games.length}</span><br><span style="color:var(--sub)">games</span></div>
-        <div><span style="color:var(--accent);font-size:18px;font-weight:bold">${totalHours.toLocaleString()}</span><br><span style="color:var(--sub)">total hours</span></div>
-        ${user.steam_id ? `<div><span style="color:var(--accent);font-size:18px;font-weight:bold">${steamHours.toLocaleString()}</span><br><span style="color:var(--sub)">steam hours</span></div>` : ""}
+        <div><span style="color:${accent};font-size:18px;font-weight:bold">${games.length}</span><br><span style="color:var(--sub)">games</span></div>
+        <div><span style="color:${accent};font-size:18px;font-weight:bold">${totalHours.toLocaleString()}</span><br><span style="color:var(--sub)">total hours</span></div>
+        ${user.steam_id ? `<div><span style="color:${accent};font-size:18px;font-weight:bold">${steamHours.toLocaleString()}</span><br><span style="color:var(--sub)">steam hours</span></div>` : ""}
       </div>
       ${tabsHtml(hydraGames, steamGames, Boolean(user.steam_id))}
       <p style="font-size:11px;color:var(--sub);margin-top:16px">Powered by <a href="https://github.com/entitybtw/hydra-selfhosted">Hydra Self-Hosted</a></p>
     </div>
-  `);
+  `, accent);
 }
 
 function getUserFromCookie(req: FastifyRequest): DbUser | null {
@@ -301,9 +305,11 @@ export async function webRoutes(app: FastifyInstance) {
   }, async (req: FastifyRequest<{ Body: Record<string, string> }>, reply: FastifyReply) => {
     const user = getUserFromCookie(req);
     if (!user) return reply.redirect("/");
-    const { display_name, bio } = req.body ?? {};
-    db.prepare("UPDATE users SET display_name = ?, bio = ? WHERE id = ?")
-      .run((display_name ?? "").slice(0, 64), (bio ?? "").slice(0, 200), user.id);
+    const { display_name, bio, accent_color, accent_color_hex } = req.body ?? {};
+    const accent = (/^#[0-9a-fA-F]{6}$/.test(accent_color_hex ?? "") ? accent_color_hex
+      : /^#[0-9a-fA-F]{6}$/.test(accent_color ?? "") ? accent_color : null);
+    db.prepare("UPDATE users SET display_name = ?, bio = ?, accent_color = ? WHERE id = ?")
+      .run((display_name ?? "").slice(0, 64), (bio ?? "").slice(0, 200), accent, user.id);
     const updated = db.prepare("SELECT * FROM users WHERE id = ?").get(user.id) as DbUser;
     const games = db.prepare("SELECT * FROM games WHERE user_id = ? AND is_deleted = 0").all(user.id) as DbGame[];
     return reply.type("text/html").send(dashboardPage(updated, games, "Profile updated.", "ok"));
