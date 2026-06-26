@@ -63,7 +63,9 @@ const CSS = `
   .row{display:flex;gap:10px}
   .row button{flex:1}
   .token-box{background:var(--bg3);border:1px solid var(--border);border-radius:4px;padding:8px 10px;font-size:12px;word-break:break-all;color:var(--sub)}
-  table{width:100%;border-collapse:collapse;font-size:12px}
+  .tab-btn{background:var(--bg3);border:1px solid var(--border);color:var(--sub);width:auto;padding:6px 14px;font-size:12px}
+  .tab-btn.active{background:var(--accent);border-color:var(--accent);color:#fff}
+  .tab-btn:hover{opacity:.85}
   th{color:var(--sub);text-align:left;padding:6px 8px;border-bottom:1px solid var(--border)}
   td{padding:6px 8px;border-bottom:1px solid #1a1a1a;color:var(--text)}
   tr:last-child td{border-bottom:none}
@@ -108,13 +110,50 @@ function loginPage(error?: string) {
   `);
 }
 
-function dashboardPage(user: DbUser, games: DbGame[], msg?: string, msgType: "ok"|"err" = "ok") {
-  const top = [...games].sort((a, b) => b.play_time_in_seconds - a.play_time_in_seconds);
-  const totalHours = Math.floor(games.reduce((s, g) => s + g.play_time_in_seconds, 0) / 3600);
+function tabsHtml(hydraGames: DbGame[], steamGames: DbGame[], hasSteam: boolean) {
+  const mkRows = (list: DbGame[]) => list.slice(0, 100).map(g =>
+    `<tr><td>${h(g.title)}</td><td>${fmtHours(g.play_time_in_seconds)}</td></tr>`
+  ).join("") || `<tr><td colspan="2" style="color:var(--sub)">No games yet.</td></tr>`;
 
-  const gameRows = top.slice(0, 20).map(g =>
-    `<tr><td>${h(g.title)}</td><td><span class="badge">${h(g.shop)}</span></td><td>${fmtHours(g.play_time_in_seconds)}</td></tr>`
-  ).join("");
+  const hydraRows = mkRows(hydraGames);
+  const steamRows = mkRows(steamGames);
+
+  const steamTab = hasSteam ? `<button class="tab-btn" data-tab="steam">Steam (${steamGames.length})</button>` : "";
+  const steamPanel = hasSteam ? `
+    <div class="tab-panel" id="tab-steam" style="display:none">
+      <table><thead><tr><th>Game</th><th>Playtime</th></tr></thead><tbody>${steamRows}</tbody></table>
+    </div>` : "";
+
+  return `
+    <div class="tabs" style="margin-top:16px">
+      <div style="display:flex;gap:8px;margin-bottom:12px">
+        <button class="tab-btn active" data-tab="hydra">Hydra (${hydraGames.length})</button>
+        ${steamTab}
+      </div>
+      <div class="tab-panel" id="tab-hydra">
+        <table><thead><tr><th>Game</th><th>Playtime</th></tr></thead><tbody>${hydraRows}</tbody></table>
+      </div>
+      ${steamPanel}
+    </div>
+    <script>
+      document.querySelectorAll('.tab-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+          document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+          document.querySelectorAll('.tab-panel').forEach(p => p.style.display = 'none');
+          btn.classList.add('active');
+          document.getElementById('tab-' + btn.dataset.tab).style.display = '';
+        });
+      });
+    </script>
+  `;
+}
+
+function dashboardPage(user: DbUser, games: DbGame[], msg?: string, msgType: "ok"|"err" = "ok") {
+  const totalHours = Math.floor(games.reduce((s, g) => s + g.play_time_in_seconds, 0) / 3600);
+  const hydraGames = [...games].filter(g => g.shop !== "steam" || !user.steam_id)
+    .sort((a, b) => b.play_time_in_seconds - a.play_time_in_seconds);
+  const steamGames = [...games].filter(g => g.shop === "steam")
+    .sort((a, b) => b.play_time_in_seconds - a.play_time_in_seconds);
 
   return page("Dashboard", `
     <div class="card wide">
@@ -137,8 +176,8 @@ function dashboardPage(user: DbUser, games: DbGame[], msg?: string, msgType: "ok
         <button type="submit">Save &amp; sync Steam now</button>
       </form>
 
-      <h3>Your library (top 20)</h3>
-      ${games.length > 0 ? `<table><thead><tr><th>Game</th><th>Shop</th><th>Playtime</th></tr></thead><tbody>${gameRows}</tbody></table>` : "<p style='font-size:12px;color:var(--sub)'>No games yet. Play something or connect Steam.</p>"}
+      <h3>Library</h3>
+      ${tabsHtml(hydraGames, steamGames, Boolean(user.steam_id))}
 
       <h3>API access</h3>
       <p style="font-size:12px;color:var(--sub);margin-bottom:8px">Use this URL in Hydra Launcher settings:</p>
@@ -154,14 +193,12 @@ function dashboardPage(user: DbUser, games: DbGame[], msg?: string, msgType: "ok
 }
 
 function publicProfilePage(user: DbUser, games: DbGame[]) {
-  const top = [...games].sort((a, b) => b.play_time_in_seconds - a.play_time_in_seconds);
   const totalHours = Math.floor(games.reduce((s, g) => s + g.play_time_in_seconds, 0) / 3600);
-  const steamGames = games.filter(g => g.shop === "steam");
+  const hydraGames = [...games].filter(g => g.shop !== "steam" || !user.steam_id)
+    .sort((a, b) => b.play_time_in_seconds - a.play_time_in_seconds);
+  const steamGames = [...games].filter(g => g.shop === "steam")
+    .sort((a, b) => b.play_time_in_seconds - a.play_time_in_seconds);
   const steamHours = Math.floor(steamGames.reduce((s, g) => s + g.play_time_in_seconds, 0) / 3600);
-
-  const rows = top.slice(0, 50).map(g =>
-    `<tr><td>${h(g.title)}</td><td><span class="badge">${h(g.shop)}</span></td><td>${fmtHours(g.play_time_in_seconds)}</td></tr>`
-  ).join("");
 
   return page(`@${user.username}`, `
     <div class="card wide">
@@ -172,9 +209,7 @@ function publicProfilePage(user: DbUser, games: DbGame[]) {
         <div><span style="color:var(--accent);font-size:18px;font-weight:bold">${totalHours.toLocaleString()}</span><br><span style="color:var(--sub)">total hours</span></div>
         ${user.steam_id ? `<div><span style="color:var(--accent);font-size:18px;font-weight:bold">${steamHours.toLocaleString()}</span><br><span style="color:var(--sub)">steam hours</span></div>` : ""}
       </div>
-      ${games.length > 0
-        ? `<table><thead><tr><th>Game</th><th>Shop</th><th>Playtime</th></tr></thead><tbody>${rows}</tbody></table>`
-        : `<p style="font-size:13px;color:var(--sub)">No games yet.</p>`}
+      ${tabsHtml(hydraGames, steamGames, Boolean(user.steam_id))}
       <p style="font-size:11px;color:var(--sub);margin-top:16px">Powered by <a href="https://github.com/entitybtw/hydra-selfhosted">Hydra Self-Hosted</a></p>
     </div>
   `);
