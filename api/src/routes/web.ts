@@ -66,7 +66,7 @@ const CSS = `
   .row button{flex:1}
   .token-box{background:var(--bg3);border:1px solid var(--border);border-radius:4px;padding:8px 10px;font-size:12px;word-break:break-all;color:var(--sub)}
   .tab-btn{background:var(--bg3);border:1px solid var(--border);color:var(--sub);width:auto;padding:6px 14px;font-size:12px}
-  .tab-btn.active{background:var(--accent);border-color:var(--accent);color:#fff}
+  .tab-btn.active{background:var(--accent);border-color:var(--accent);color:var(--btn-text,#fff)}
   .tab-btn:hover{opacity:.85}
   th{color:var(--sub);text-align:left;padding:6px 8px;border-bottom:1px solid var(--border)}
   td{padding:6px 8px;border-bottom:1px solid #1a1a1a;color:var(--text)}
