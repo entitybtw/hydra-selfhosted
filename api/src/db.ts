@@ -19,6 +19,10 @@ for (const col of ["steam_id", "steam_api_key", "accent_color"]) {
   try { db.exec(`ALTER TABLE users ADD COLUMN ${col} TEXT`); } catch {}
 }
 
+// Fix image URLs stored as absolute paths
+db.exec(`UPDATE users SET profile_image_url = REPLACE(profile_image_url, '/data/images/', '/images/') WHERE profile_image_url LIKE '/data/%'`);
+db.exec(`UPDATE users SET background_image_url = REPLACE(background_image_url, '/data/images/', '/images/') WHERE background_image_url LIKE '/data/%'`);
+
 db.exec(`
   CREATE TABLE IF NOT EXISTS users (
     id TEXT PRIMARY KEY,

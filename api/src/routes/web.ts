@@ -53,7 +53,7 @@ const CSS = `
   input:focus,textarea:focus{border-color:var(--accent)}
   textarea{resize:vertical;min-height:60px}
   .field{margin-bottom:14px}
-  button,.btn{background:var(--accent);color:#fff;border:none;border-radius:4px;padding:9px 18px;font-family:inherit;font-size:13px;cursor:pointer;width:100%;transition:opacity .15s}
+  button,.btn{background:var(--accent);color:var(--btn-text,#fff);border:none;border-radius:4px;padding:9px 18px;font-family:inherit;font-size:13px;cursor:pointer;width:100%;transition:opacity .15s}
   button:hover,.btn:hover{opacity:.85}
   .btn-ghost{background:transparent;border:1px solid var(--border);color:var(--sub)}
   .btn-ghost:hover{border-color:var(--accent);color:var(--text)}
@@ -84,8 +84,7 @@ function contrastColor(hex: string): string {
 }
 
 function page(title: string, body: string, accent = "#7b68ee") {
-  const btnText = contrastColor(accent);
-  return `<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${h(title)} — Hydra Self-Hosted</title><style>${CSS}</style><style>:root{--accent:${accent};--btn-text:${btnText}}button:not(.btn-ghost),.btn:not(.btn-ghost){color:var(--btn-text)}</style></head><body>${body}</body></html>`;
+  return `<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${h(title)} — Hydra Self-Hosted</title><style>${CSS}:root{--accent:${accent};--btn-text:${contrastColor(accent)}}</style></head><body>${body}</body></html>`;
 }
 
 function tokenGatePage(error?: string) {
@@ -168,9 +167,18 @@ function dashboardPage(user: DbUser, games: DbGame[], msg?: string, msgType: "ok
     .sort((a, b) => b.play_time_in_seconds - a.play_time_in_seconds);
 
   return page("Dashboard", `
-    <div class="card wide">
-      <h1>⬡ ${h(user.display_name || user.username)}</h1>
-      <h2>@${h(user.username)} · ${games.length} games · ${totalHours.toLocaleString()}h total</h2>
+    <div class="card wide" style="padding:0;overflow:hidden">
+      ${user.background_image_url ? `<div style="height:140px;background:url('${h(user.background_image_url)}') center/cover no-repeat"></div>` : `<div style="height:60px;background:var(--bg3)"></div>`}
+      <div style="padding:0 32px 32px">
+        <div style="display:flex;align-items:flex-end;gap:16px;margin-top:${user.background_image_url ? "-36px" : "-16px"};margin-bottom:16px">
+          ${user.profile_image_url
+            ? `<img src="${h(user.profile_image_url)}" style="width:64px;height:64px;border-radius:50%;border:3px solid var(--bg2);object-fit:cover;flex-shrink:0">`
+            : `<div style="width:64px;height:64px;border-radius:50%;border:3px solid var(--bg2);background:var(--bg3);display:flex;align-items:center;justify-content:center;font-size:24px;flex-shrink:0">⬡</div>`}
+          <div>
+            <div style="font-size:18px;color:var(--accent);font-weight:bold">${h(user.display_name || user.username)}</div>
+            <div style="font-size:13px;color:var(--sub)">@${h(user.username)} · ${games.length} games · ${totalHours.toLocaleString()}h</div>
+          </div>
+        </div>
       ${msg ? `<div class="${msgType}">${h(msg)}</div>` : ""}
 
       <h3>Profile</h3>
@@ -200,6 +208,7 @@ function dashboardPage(user: DbUser, games: DbGame[], msg?: string, msgType: "ok
         <a href="/u/${h(user.username)}" target="_blank" class="btn btn-ghost" style="display:inline-block;padding:8px 14px;font-size:12px">View public profile ↗</a>
         &nbsp;
         <a href="/web/logout" style="font-size:12px;color:var(--sub)">Sign out</a>
+      </div>
       </div>
     </div>
   `, accent);

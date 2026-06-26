@@ -57,9 +57,9 @@ export async function imagesRoutes(app: FastifyInstance) {
 
       const { type, userId } = req.query;
       if (type === "profile-image") {
-        db.prepare("UPDATE users SET profile_image_url = ? WHERE id = ?").run(filePath, userId);
+        db.prepare("UPDATE users SET profile_image_url = ? WHERE id = ?").run(`/images/${req.params.filename}`, userId);
       } else {
-        db.prepare("UPDATE users SET background_image_url = ? WHERE id = ?").run(filePath, userId);
+        db.prepare("UPDATE users SET background_image_url = ? WHERE id = ?").run(`/images/${req.params.filename}`, userId);
       }
 
       return {};
