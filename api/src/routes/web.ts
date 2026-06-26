@@ -74,8 +74,17 @@ const CSS = `
   .warn{background:#1e1a00;border:1px solid #5a4a00;border-radius:4px;padding:8px 12px;font-size:12px;color:#c8a040;margin-bottom:14px}
 `;
 
+function contrastColor(hex: string): string {
+  const r = parseInt(hex.slice(1, 3), 16);
+  const g = parseInt(hex.slice(3, 5), 16);
+  const b = parseInt(hex.slice(5, 7), 16);
+  // Perceived luminance
+  return (r * 299 + g * 587 + b * 114) / 1000 > 128 ? "#111111" : "#ffffff";
+}
+
 function page(title: string, body: string, accent = "#7b68ee") {
-  return `<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${h(title)} — Hydra Self-Hosted</title><style>${CSS.replace(/var\(--accent\)/g, "VAR_ACCENT").replace(/VAR_ACCENT/g, accent)}</style></head><body>${body}</body></html>`;
+  const btnText = contrastColor(accent);
+  return `<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${h(title)} — Hydra Self-Hosted</title><style>${CSS}</style><style>:root{--accent:${accent};--btn-text:${btnText}}button:not(.btn-ghost),.btn:not(.btn-ghost){color:var(--btn-text)}</style></head><body>${body}</body></html>`;
 }
 
 function tokenGatePage(error?: string) {
@@ -167,7 +176,7 @@ function dashboardPage(user: DbUser, games: DbGame[], msg?: string, msgType: "ok
       <form method="POST" action="/web/profile">
         <div class="field"><label>Display name</label><input name="display_name" value="${h(user.display_name)}" maxlength="64"></div>
         <div class="field"><label>Bio</label><textarea name="bio" maxlength="200">${h(user.bio)}</textarea></div>
-        <div class="field"><label>Accent color</label><div style="display:flex;gap:8px;align-items:center"><input type="color" name="accent_color" value="${h(accent)}" style="width:40px;height:32px;padding:2px;cursor:pointer"><input name="accent_color_hex" value="${h(accent)}" maxlength="7" style="flex:1" placeholder="#7b68ee"></div></div>
+        <div class="field"><label>Accent color</label><div style="display:flex;gap:8px;align-items:center"><input type="color" id="accent_picker" name="accent_color" value="${h(accent)}" style="width:40px;height:32px;padding:2px;cursor:pointer" oninput="document.getElementById('accent_hex').value=this.value"><input id="accent_hex" name="accent_color_hex" value="${h(accent)}" maxlength="7" style="flex:1" placeholder="#7b68ee" oninput="if(/^#[0-9a-fA-F]{6}$/.test(this.value))document.getElementById('accent_picker').value=this.value"></div></div>
         <button type="submit">Save profile</button>
       </form>
 
@@ -205,16 +214,26 @@ function publicProfilePage(user: DbUser, games: DbGame[]) {
   const steamHours = Math.floor(steamGames.reduce((s, g) => s + g.play_time_in_seconds, 0) / 3600);
 
   return page(`@${user.username}`, `
-    <div class="card wide">
-      <h1>⬡ ${h(user.display_name || user.username)}</h1>
-      <h2>@${h(user.username)}${user.bio ? ` · ${h(user.bio)}` : ""}</h2>
-      <div style="display:flex;gap:24px;margin:16px 0;font-size:13px">
-        <div><span style="color:${accent};font-size:18px;font-weight:bold">${games.length}</span><br><span style="color:var(--sub)">games</span></div>
-        <div><span style="color:${accent};font-size:18px;font-weight:bold">${totalHours.toLocaleString()}</span><br><span style="color:var(--sub)">total hours</span></div>
-        ${user.steam_id ? `<div><span style="color:${accent};font-size:18px;font-weight:bold">${steamHours.toLocaleString()}</span><br><span style="color:var(--sub)">steam hours</span></div>` : ""}
+    <div class="card wide" style="padding:0;overflow:hidden">
+      ${user.background_image_url ? `<div style="height:160px;background:url('${h(user.background_image_url)}') center/cover no-repeat;position:relative"></div>` : `<div style="height:80px;background:var(--bg3)"></div>`}
+      <div style="padding:0 32px 32px">
+        <div style="display:flex;align-items:flex-end;gap:16px;margin-top:${user.background_image_url ? "-40px" : "-20px"};margin-bottom:16px">
+          ${user.profile_image_url
+            ? `<img src="${h(user.profile_image_url)}" style="width:72px;height:72px;border-radius:50%;border:3px solid var(--bg2);object-fit:cover;flex-shrink:0">`
+            : `<div style="width:72px;height:72px;border-radius:50%;border:3px solid var(--bg2);background:var(--bg3);display:flex;align-items:center;justify-content:center;font-size:28px;flex-shrink:0">⬡</div>`}
+          <div>
+            <h1 style="margin:0">⬡ ${h(user.display_name || user.username)}</h1>
+            <h2 style="margin:0">@${h(user.username)}${user.bio ? ` · ${h(user.bio)}` : ""}</h2>
+          </div>
+        </div>
+        <div style="display:flex;gap:24px;margin:16px 0;font-size:13px">
+          <div><span style="color:${accent};font-size:18px;font-weight:bold">${games.length}</span><br><span style="color:var(--sub)">games</span></div>
+          <div><span style="color:${accent};font-size:18px;font-weight:bold">${totalHours.toLocaleString()}</span><br><span style="color:var(--sub)">total hours</span></div>
+          ${user.steam_id ? `<div><span style="color:${accent};font-size:18px;font-weight:bold">${steamHours.toLocaleString()}</span><br><span style="color:var(--sub)">steam hours</span></div>` : ""}
+        </div>
+        ${tabsHtml(hydraGames, steamGames, Boolean(user.steam_id))}
+        <p style="font-size:11px;color:var(--sub);margin-top:16px">Powered by <a href="https://github.com/entitybtw/hydra-selfhosted">Hydra Self-Hosted</a></p>
       </div>
-      ${tabsHtml(hydraGames, steamGames, Boolean(user.steam_id))}
-      <p style="font-size:11px;color:var(--sub);margin-top:16px">Powered by <a href="https://github.com/entitybtw/hydra-selfhosted">Hydra Self-Hosted</a></p>
     </div>
   `, accent);
 }
