@@ -174,7 +174,7 @@ function dashboardPage(user: DbUser, games: DbGame[], msg?: string, msgType: "ok
       <h3>Steam integration</h3>
       <div class="warn">Your Steam API key is stored on this server. Use a dedicated key or one with minimal permissions.</div>
       <form method="POST" action="/web/steam">
-        <div class="field"><label>SteamID64</label><input name="steam_id" value="${h(user.steam_id ?? "")}" placeholder="76561198xxxxxxxxx"></div>
+        <div class="field"><label>SteamID64 <a href="https://steamid.io" target="_blank">↗ find yours</a></label><input name="steam_id" value="${h(user.steam_id ?? "")}" placeholder="76561198xxxxxxxxx"><p style="font-size:11px;color:var(--sub);margin-top:4px">Go to <a href="https://steamid.io" target="_blank">steamid.io</a>, enter your Steam profile URL or username, copy the <strong>steamID64</strong> value.</p></div>
         <div class="field"><label>Steam Web API Key <a href="https://steamcommunity.com/dev/apikey" target="_blank">↗</a></label><input name="steam_api_key" type="password" value="${user.steam_api_key ? "••••••••" : ""}" placeholder="Leave blank to keep current" autocomplete="off"></div>
         <button type="submit">Save &amp; sync Steam now</button>
       </form>
