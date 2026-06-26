@@ -10,6 +10,7 @@ interface DbUser {
   display_name: string;
   bio: string;
   profile_image_url: string | null;
+  background_image_url: string | null;
   steam_id: string | null;
   steam_api_key: string | null;
   accent_color: string | null;
