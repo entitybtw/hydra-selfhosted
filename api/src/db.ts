@@ -14,6 +14,11 @@ export const db = new Database(path.join(DATA_DIR, "hydra.db"));
 db.pragma("journal_mode = WAL");
 db.pragma("foreign_keys = ON");
 
+// Migrations for existing databases
+for (const col of ["steam_id", "steam_api_key"]) {
+  try { db.exec(`ALTER TABLE users ADD COLUMN ${col} TEXT`); } catch {}
+}
+
 db.exec(`
   CREATE TABLE IF NOT EXISTS users (
     id TEXT PRIMARY KEY,
@@ -23,6 +28,8 @@ db.exec(`
     profile_image_url TEXT,
     background_image_url TEXT,
     bio TEXT NOT NULL DEFAULT '',
+    steam_id TEXT,
+    steam_api_key TEXT,
     created_at INTEGER NOT NULL DEFAULT (unixepoch())
   );
 

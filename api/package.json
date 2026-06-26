@@ -8,7 +8,9 @@
     "dev": "tsx watch src/index.ts"
   },
   "dependencies": {
+    "@fastify/cookie": "11.0.2",
     "@fastify/multipart": "9.0.3",
+    "axios": "1.9.0",
     "better-sqlite3": "11.10.0",
     "fastify": "5.4.0",
     "jsonwebtoken": "9.0.2"

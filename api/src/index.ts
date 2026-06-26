@@ -1,4 +1,5 @@
 import Fastify from "fastify";
+import fastifyCookie from "@fastify/cookie";
 import { authRoutes } from "./routes/auth";
 import { profileRoutes } from "./routes/profile";
 import { gamesRoutes } from "./routes/games";
@@ -6,8 +7,11 @@ import { artifactsRoutes } from "./routes/artifacts";
 import { imagesRoutes } from "./routes/images";
 import { webRoutes } from "./routes/web";
 import { friendsRoutes } from "./routes/friends";
+import { startSteamSyncScheduler } from "./steam-sync";
 
 const app = Fastify({ logger: true });
+
+app.register(fastifyCookie);
 
 app.addContentTypeParser("application/tar", { parseAs: "buffer" }, (_req, body, done) => {
   done(null, body);
@@ -18,8 +22,11 @@ app.addContentTypeParser(/^image\//, { parseAs: "buffer" }, (_req, body, done) =
 app.addContentTypeParser("application/octet-stream", { parseAs: "buffer" }, (_req, body, done) => {
   done(null, body);
 });
-app.addContentTypeParser("application/x-www-form-urlencoded", { parseAs: "string" }, (_req, body, done) => {
-  done(null, {});
+app.addContentTypeParser("application/x-www-form-urlencoded", { parseAs: "string" }, (_req, body: string, done) => {
+  const params = new URLSearchParams(body);
+  const result: Record<string, string> = {};
+  for (const [k, v] of params) result[k] = v;
+  done(null, result);
 });
 
 app.register(authRoutes);
@@ -33,7 +40,9 @@ app.register(friendsRoutes);
 app.get("/health", async () => ({ status: "ok" }));
 
 const port = parseInt(process.env.PORT ?? "3000", 10);
-app.listen({ port, host: "0.0.0.0" }).catch((err) => {
+app.listen({ port, host: "0.0.0.0" }).then(() => {
+  startSteamSyncScheduler();
+}).catch((err) => {
   app.log.error(err);
   process.exit(1);
 });
