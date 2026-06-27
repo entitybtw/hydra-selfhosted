@@ -1,5 +1,6 @@
 import { FastifyInstance, FastifyRequest, FastifyReply } from "fastify";
 import crypto from "node:crypto";
+import bcrypt from "bcryptjs";
 import { db } from "../db";
 import { signAccess, verifyToken } from "../auth";
 import { syncSteamGames } from "../steam-sync";
@@ -26,7 +27,16 @@ interface DbGame {
 }
 
 function hashPassword(p: string) {
-  return crypto.createHash("sha256").update(p).digest("hex");
+  return bcrypt.hashSync(p, 10);
+}
+
+function verifyPassword(p: string, hash: string) {
+  // support legacy sha256 hashes during migration
+  if (hash.length === 64) {
+    const sha = require("node:crypto").createHash("sha256").update(p).digest("hex");
+    return sha === hash;
+  }
+  return bcrypt.compareSync(p, hash);
 }
 
 function h(s: string) {
@@ -270,49 +280,54 @@ function getUserFromCookie(req: FastifyRequest): DbUser | null {
 }
 
 export async function webRoutes(app: FastifyInstance) {
-  app.get("/", async (req: FastifyRequest<{ Querystring: { token?: string; launcher?: string } }>, reply: FastifyReply) => {
+  app.get("/", async (req: FastifyRequest<{ Querystring: { launcher?: string } }>, reply: FastifyReply) => {
     const user = getUserFromCookie(req);
     if (user) return reply.redirect("/web/dashboard");
-    const queryToken = (req.query as any).token;
-    if (queryToken) {
-      const secret = process.env.API_TOKEN;
-      if (secret && queryToken === secret) {
-        return reply
-          .setCookie("gate_ok", "1", { path: "/", httpOnly: true, maxAge: 60 * 60 * 24 * 7 })
-          .redirect((req.query as any).launcher === "1" ? "/?launcher=1" : "/");
-      }
-    }
     const gate = (req as any).cookies?.["gate_ok"];
     if (gate !== "1") return reply.type("text/html").send(tokenGatePage());
     const launcher = (req.query as any).launcher === "1";
     return reply.type("text/html").send(loginPage(undefined, launcher));
   });
 
+  // Called by launcher to set gate cookie without exposing token in URL
+  app.post("/web/launcher-gate", {
+    config: { rawBody: true },
+  }, async (req: FastifyRequest<{ Body: Record<string, string> }>, reply: FastifyReply) => {
+    const secret = process.env.API_TOKEN;
+    if (!secret || req.body?.token !== secret) {
+      return reply.code(403).send({ error: "forbidden" });
+    }
+    return reply
+      .setCookie("gate_ok", "1", { path: "/", httpOnly: true, maxAge: 60 * 60 * 24 * 7 })
+      .send({ ok: true });
+  });
+
   // Auto-login via launcher userToken
-  app.get("/web/auto-login", async (
-    req: FastifyRequest<{ Querystring: { userToken?: string } }>,
+  app.post("/web/auto-login", {
+    config: { rawBody: true },
+  }, async (
+    req: FastifyRequest<{ Body: { userToken?: string } }>,
     reply: FastifyReply
   ) => {
-    const userToken = (req.query as any).userToken;
-    if (!userToken) return reply.redirect("/");
+    const userToken = req.body?.userToken;
+    if (!userToken) return reply.code(400).send({ error: "missing userToken" });
     let userId: string;
     try {
       userId = verifyToken(userToken, "access");
     } catch (e: any) {
-      if (e?.name !== "TokenExpiredError") return reply.redirect("/");
-      // expired but valid signature — extract sub manually
+      if (e?.name !== "TokenExpiredError") return reply.code(403).send({ error: "invalid token" });
       const jwt = await import("jsonwebtoken");
       const decoded = jwt.default.decode(userToken) as any;
       userId = decoded?.sub;
-      if (!userId) return reply.redirect("/");
+      if (!userId) return reply.code(403).send({ error: "invalid token" });
     }
     const user = db.prepare("SELECT id FROM users WHERE id = ?").get(userId);
-    if (!user) return reply.redirect("/");
+    if (!user) return reply.code(404).send({ error: "user not found" });
     const webToken = signAccess(userId);
     return reply
       .setCookie("gate_ok", "1", { path: "/", httpOnly: true, maxAge: 60 * 60 * 24 * 7 })
       .setCookie("web_token", webToken, { path: "/", httpOnly: true, maxAge: 60 * 60 * 24 * 30 })
-      .redirect("/web/dashboard");
+      .send({ ok: true });
   });
 
   app.post("/web/gate", {
@@ -353,7 +368,7 @@ export async function webRoutes(app: FastifyInstance) {
     const user = db.prepare("SELECT id, password_hash FROM users WHERE username = ?")
       .get(username) as { id: string; password_hash: string } | undefined;
 
-    if (!user || user.password_hash !== hashPassword(password)) {
+    if (!user || !verifyPassword(password, user.password_hash)) {
       return reply.type("text/html").send(loginPage("Invalid username or password.", isLauncher));
     }
 
@@ -415,7 +430,7 @@ export async function webRoutes(app: FastifyInstance) {
     if (!user) return reply.redirect("/");
     const { current_password, new_password } = req.body ?? {};
     const row = db.prepare("SELECT password_hash FROM users WHERE id = ?").get(user.id) as { password_hash: string };
-    if (row.password_hash !== hashPassword(current_password ?? "")) {
+    if (!verifyPassword(current_password ?? "", row.password_hash)) {
       const games = db.prepare("SELECT * FROM games WHERE user_id = ? AND is_deleted = 0").all(user.id) as DbGame[];
       return reply.type("text/html").send(dashboardPage(user, games, "Current password is incorrect.", "err"));
     }

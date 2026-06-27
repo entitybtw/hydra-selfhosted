@@ -1,5 +1,6 @@
 import { FastifyInstance, FastifyRequest, FastifyReply } from "fastify";
 import crypto from "node:crypto";
+import bcrypt from "bcryptjs";
 import { db } from "../db";
 import {
   signAccess,
@@ -10,7 +11,14 @@ import {
 } from "../auth";
 
 function hashPassword(password: string): string {
-  return crypto.createHash("sha256").update(password).digest("hex");
+  return bcrypt.hashSync(password, 10);
+}
+
+function verifyPassword(password: string, hash: string): boolean {
+  if (hash.length === 64) {
+    return crypto.createHash("sha256").update(password).digest("hex") === hash;
+  }
+  return bcrypt.compareSync(password, hash);
 }
 
 export async function authRoutes(app: FastifyInstance) {
@@ -48,7 +56,7 @@ export async function authRoutes(app: FastifyInstance) {
         .prepare("SELECT id, password_hash FROM users WHERE username = ?")
         .get(username) as { id: string; password_hash: string } | undefined;
 
-      if (!user || user.password_hash !== hashPassword(password)) {
+      if (!user || !verifyPassword(password, user.password_hash)) {
         return reply.code(401).send({ error: "invalid credentials" });
       }
 
