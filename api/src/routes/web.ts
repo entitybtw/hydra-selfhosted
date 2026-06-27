@@ -285,6 +285,33 @@ export async function webRoutes(app: FastifyInstance) {
     return reply.type("text/html").send(loginPage());
   });
 
+  // Auto-login via launcher userToken
+  app.get("/web/auto-login", async (
+    req: FastifyRequest<{ Querystring: { userToken?: string } }>,
+    reply: FastifyReply
+  ) => {
+    const userToken = (req.query as any).userToken;
+    if (!userToken) return reply.redirect("/");
+    let userId: string;
+    try {
+      userId = verifyToken(userToken, "access");
+    } catch (e: any) {
+      if (e?.name !== "TokenExpiredError") return reply.redirect("/");
+      // expired but valid signature — extract sub manually
+      const jwt = await import("jsonwebtoken");
+      const decoded = jwt.default.decode(userToken) as any;
+      userId = decoded?.sub;
+      if (!userId) return reply.redirect("/");
+    }
+    const user = db.prepare("SELECT id FROM users WHERE id = ?").get(userId);
+    if (!user) return reply.redirect("/");
+    const webToken = signAccess(userId);
+    return reply
+      .setCookie("gate_ok", "1", { path: "/", httpOnly: true, maxAge: 60 * 60 * 24 * 7 })
+      .setCookie("web_token", webToken, { path: "/", httpOnly: true, maxAge: 60 * 60 * 24 * 30 })
+      .redirect("/web/dashboard");
+  });
+
   app.post("/web/gate", {
     config: { rawBody: true },
   }, async (req: FastifyRequest<{ Body: Record<string, string> }>, reply: FastifyReply) => {

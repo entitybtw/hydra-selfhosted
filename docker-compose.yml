@@ -8,4 +8,6 @@ services:
     environment:
       - API_TOKEN=${API_TOKEN:-change-me}
       - PORT=${PORT:-3000}
+      - SESSION_TTL_DAYS=${SESSION_TTL_DAYS:-30}
+      - PUBLIC_URL=${PUBLIC_URL:-}
     restart: unless-stopped
