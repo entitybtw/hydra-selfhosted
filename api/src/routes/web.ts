@@ -220,7 +220,10 @@ function dashboardPage(user: DbUser, games: DbGame[], msg?: string, msgType: "ok
       </div>
       </div>
     </div>
-  `, accent, user.custom_css || "");(user: DbUser, games: DbGame[]) {
+  `, accent, user.custom_css || "");
+}
+
+function publicProfilePage(user: DbUser, games: DbGame[]) {
   const accent = user.accent_color || "#7b68ee";
   const totalHours = Math.floor(games.reduce((s, g) => s + g.play_time_in_seconds, 0) / 3600);
   const hydraGames = [...games].filter(g => g.shop !== "steam" || !user.steam_id)
