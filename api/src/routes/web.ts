@@ -170,7 +170,7 @@ function dashboardPage(user: DbUser, games: DbGame[], msg?: string, msgType: "ok
     <div class="card wide" style="padding:0;overflow:hidden">
       ${user.background_image_url ? `<div style="height:140px;background:url('${h(user.background_image_url)}') center/cover no-repeat"></div>` : `<div style="height:60px;background:var(--bg3)"></div>`}
       <div style="padding:0 32px 32px">
-        <div style="display:flex;align-items:flex-end;gap:16px;margin-top:${user.background_image_url ? "-36px" : "-16px"};margin-bottom:16px">
+        <div style="display:flex;align-items:flex-end;gap:16px;margin-top:${user.background_image_url ? "-36px" : "-16px"};margin-bottom:16px;position:relative;z-index:1">
           ${user.profile_image_url
             ? `<img src="${h(user.profile_image_url)}" style="width:64px;height:64px;border-radius:50%;border:3px solid var(--bg2);object-fit:cover;flex-shrink:0">`
             : `<div style="width:64px;height:64px;border-radius:50%;border:3px solid var(--bg2);background:var(--bg3);display:flex;align-items:center;justify-content:center;font-size:24px;flex-shrink:0">⬡</div>`}
@@ -227,7 +227,7 @@ function publicProfilePage(user: DbUser, games: DbGame[]) {
     <div class="card wide" style="padding:0;overflow:hidden">
       ${user.background_image_url ? `<div style="height:120px;background:url('${h(user.background_image_url)}') center/cover no-repeat;position:relative"></div>` : `<div style="height:60px;background:var(--bg3)"></div>`}
       <div style="padding:0 32px 32px">
-        <div style="display:flex;align-items:flex-end;gap:16px;margin-top:${user.background_image_url ? "-40px" : "-20px"};margin-bottom:16px">
+        <div style="display:flex;align-items:flex-end;gap:16px;margin-top:${user.background_image_url ? "-40px" : "-20px"};margin-bottom:16px;position:relative;z-index:1">
           ${user.profile_image_url
             ? `<img src="${h(user.profile_image_url)}" style="width:72px;height:72px;border-radius:50%;border:3px solid var(--bg2);object-fit:cover;flex-shrink:0">`
             : `<div style="width:72px;height:72px;border-radius:50%;border:3px solid var(--bg2);background:var(--bg3);display:flex;align-items:center;justify-content:center;font-size:28px;flex-shrink:0">⬡</div>`}
