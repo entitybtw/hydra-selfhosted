@@ -271,7 +271,7 @@ export async function webRoutes(app: FastifyInstance) {
   app.post("/web/gate", {
     config: { rawBody: true },
   }, async (req: FastifyRequest<{ Body: Record<string, string> }>, reply: FastifyReply) => {
-    const secret = process.env.JWT_SECRET;
+    const secret = process.env.API_TOKEN;
     if (!secret || req.body?.instance_token !== secret) {
       return reply.type("text/html").send(tokenGatePage("Invalid token."));
     }
