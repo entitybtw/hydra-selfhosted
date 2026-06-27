@@ -11,8 +11,8 @@ Run your own server for cloud saves, accounts, and profiles — no Hydra Cloud s
 - **Cloud saves** — game save backups stored on your own server
 - **Accounts** — register and log in with a username and password
 - **Public profile** — shareable page at `/u/username` with playtime and game library
-- **Web dashboard** — edit your profile, set up Steam sync, customize accent color and CSS
-- **Steam integration** — connect your Steam account to sync playtime automatically every 30 minutes
+- **Web dashboard** — edit your profile, customize accent color and CSS
+- **Steam hours on profile** — connect your Steam account in the dashboard to show Steam playtime on your public profile
 - **No subscription** — works without Hydra Cloud, unlimited cloud save slots
 
 ## Requirements
