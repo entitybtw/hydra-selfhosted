@@ -271,13 +271,9 @@ export async function webRoutes(app: FastifyInstance) {
   app.post("/web/gate", {
     config: { rawBody: true },
   }, async (req: FastifyRequest<{ Body: Record<string, string> }>, reply: FastifyReply) => {
-    try {
-      verifyToken(req.body?.instance_token, "access");
-    } catch (e: any) {
-      if (e?.name !== "TokenExpiredError") {
-        console.error("gate reject:", e?.name, e?.message);
-        return reply.type("text/html").send(tokenGatePage(`Invalid token: ${e?.name}`));
-      }
+    const secret = process.env.JWT_SECRET;
+    if (!secret || req.body?.instance_token !== secret) {
+      return reply.type("text/html").send(tokenGatePage("Invalid token."));
     }
     return reply
       .setCookie("gate_ok", "1", { path: "/", httpOnly: true, maxAge: 60 * 60 * 24 * 7 })
