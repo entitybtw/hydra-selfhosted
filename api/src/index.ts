@@ -7,6 +7,7 @@ import { artifactsRoutes } from "./routes/artifacts";
 import { imagesRoutes } from "./routes/images";
 import { webRoutes } from "./routes/web";
 import { friendsRoutes } from "./routes/friends";
+import { catalogueRoutes } from "./routes/catalogue";
 import { startSteamSyncScheduler } from "./steam-sync";
 
 const app = Fastify({ logger: true });
@@ -36,6 +37,7 @@ app.register(artifactsRoutes);
 app.register(imagesRoutes);
 app.register(webRoutes);
 app.register(friendsRoutes);
+app.register(catalogueRoutes);
 
 app.get("/health", async () => ({ status: "ok" }));
 
