@@ -180,7 +180,7 @@ export async function reviewsRoutes(app: FastifyInstance) {
   // PUT /games/:shop/:objectId/reviews/:reviewId/answers/:answerId/:voteType
   app.put("/games/:shop/:objectId/reviews/:reviewId/answers/:answerId/:voteType",
     { preHandler: requireAuth },
-    async (req: FastifyRequest<{ Params: any }>, reply: FastifyReply) => {
+    async (req: FastifyRequest<{ Params: { shop: string; objectId: string; reviewId: string; answerId: string; voteType: string } }>, reply: FastifyReply) => {
       const user = (req as any).user;
       const { answerId, voteType } = req.params;
       const existing = db.prepare("SELECT vote_type FROM review_votes WHERE user_id = ? AND target_id = ?").get(user.id, answerId) as any;
@@ -199,7 +199,7 @@ export async function reviewsRoutes(app: FastifyInstance) {
   // DELETE /games/:shop/:objectId/reviews/:reviewId/answers/:answerId
   app.delete("/games/:shop/:objectId/reviews/:reviewId/answers/:answerId",
     { preHandler: requireAuth },
-    async (req: FastifyRequest<{ Params: any }>, reply: FastifyReply) => {
+    async (req: FastifyRequest<{ Params: { shop: string; objectId: string; reviewId: string; answerId: string } }>, reply: FastifyReply) => {
       const user = (req as any).user;
       const { answerId } = req.params;
       db.prepare("DELETE FROM review_answers WHERE id = ? AND user_id = ?").run(answerId, user.id);
