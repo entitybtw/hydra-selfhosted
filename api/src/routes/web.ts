@@ -102,13 +102,14 @@ function tokenGatePage(error?: string) {
   `, "#e0e0e0");
 }
 
-function loginPage(error?: string) {
+function loginPage(error?: string, launcher = false) {
   return page("Sign in", `
     <div class="card">
       <h1>⬡ Hydra Self-Hosted</h1>
       <h2>Sign in to your account</h2>
       ${error ? `<div class="err">${h(error)}</div>` : ""}
       <form method="POST" action="/web/login">
+        <input type="hidden" name="launcher" value="${launcher ? "1" : ""}">
         <div class="field"><label>Username</label><input name="username" autocomplete="username" required autofocus></div>
         <div class="field"><label>Password</label><input name="password" type="password" autocomplete="current-password" required></div>
         <div class="row">
@@ -269,22 +270,22 @@ function getUserFromCookie(req: FastifyRequest): DbUser | null {
 }
 
 export async function webRoutes(app: FastifyInstance) {
-  app.get("/", async (req: FastifyRequest<{ Querystring: { token?: string } }>, reply: FastifyReply) => {
+  app.get("/", async (req: FastifyRequest<{ Querystring: { token?: string; launcher?: string } }>, reply: FastifyReply) => {
     const user = getUserFromCookie(req);
     if (user) return reply.redirect("/web/dashboard");
-    // Auto-gate if token passed in query
     const queryToken = (req.query as any).token;
     if (queryToken) {
       const secret = process.env.API_TOKEN;
       if (secret && queryToken === secret) {
         return reply
           .setCookie("gate_ok", "1", { path: "/", httpOnly: true, maxAge: 60 * 60 * 24 * 7 })
-          .redirect("/");
+          .redirect((req.query as any).launcher === "1" ? "/?launcher=1" : "/");
       }
     }
     const gate = (req as any).cookies?.["gate_ok"];
     if (gate !== "1") return reply.type("text/html").send(tokenGatePage());
-    return reply.type("text/html").send(loginPage());
+    const launcher = (req.query as any).launcher === "1";
+    return reply.type("text/html").send(loginPage(undefined, launcher));
   });
 
   // Auto-login via launcher userToken
@@ -330,18 +331,20 @@ export async function webRoutes(app: FastifyInstance) {
   app.post("/web/login", {
     config: { rawBody: true },
   }, async (req: FastifyRequest<{ Body: Record<string, string> }>, reply: FastifyReply) => {
-    const { username, password, action } = req.body ?? {};
+    const { username, password, action, launcher } = req.body ?? {};
+    const isLauncher = launcher === "1";
 
     if (action === "register") {
-      if (!username || !password) return reply.type("text/html").send(loginPage("Username and password required."));
+      if (!username || !password) return reply.type("text/html").send(loginPage("Username and password required.", isLauncher));
       const existing = db.prepare("SELECT id FROM users WHERE username = ?").get(username);
-      if (existing) return reply.type("text/html").send(loginPage("Username already taken."));
+      if (existing) return reply.type("text/html").send(loginPage("Username already taken.", isLauncher));
 
       const id = crypto.randomUUID();
       db.prepare("INSERT INTO users (id, username, password_hash, display_name) VALUES (?,?,?,?)")
         .run(id, username, hashPassword(password), username);
 
       const token = signAccess(id);
+      if (isLauncher) return reply.redirect(`hydra-self-hosted://token/${token}`);
       return reply
         .setCookie("web_token", token, { path: "/", httpOnly: true, maxAge: 60 * 60 * 24 * 30 })
         .redirect("/web/dashboard");
@@ -351,10 +354,11 @@ export async function webRoutes(app: FastifyInstance) {
       .get(username) as { id: string; password_hash: string } | undefined;
 
     if (!user || user.password_hash !== hashPassword(password)) {
-      return reply.type("text/html").send(loginPage("Invalid username or password."));
+      return reply.type("text/html").send(loginPage("Invalid username or password.", isLauncher));
     }
 
     const token = signAccess(user.id);
+    if (isLauncher) return reply.redirect(`hydra-self-hosted://token/${token}`);
     return reply
       .setCookie("web_token", token, { path: "/", httpOnly: true, maxAge: 60 * 60 * 24 * 30 })
       .redirect("/web/dashboard");
