@@ -274,9 +274,9 @@ export async function webRoutes(app: FastifyInstance) {
     try {
       verifyToken(req.body?.instance_token, "access");
     } catch (e: any) {
-      // allow expired tokens — just verify the signature and type
       if (e?.name !== "TokenExpiredError") {
-        return reply.type("text/html").send(tokenGatePage("Invalid token."));
+        console.error("gate reject:", e?.name, e?.message);
+        return reply.type("text/html").send(tokenGatePage(`Invalid token: ${e?.name}`));
       }
     }
     return reply
