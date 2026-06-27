@@ -2,7 +2,7 @@
 
 Self-hosted backend for the [entitybtw/hydra](https://github.com/entitybtw/hydra) fork of Hydra Launcher.
 
-Run your own server for cloud saves, accounts, and profiles — no Hydra Cloud subscription needed.
+Run your own server for cloud saves, accounts, profiles, and game data — no Hydra Cloud subscription needed.
 
 ![Screenshot](./images/screenshot.png)
 
@@ -13,6 +13,10 @@ Run your own server for cloud saves, accounts, and profiles — no Hydra Cloud s
 - **Public profile** — shareable page at `/u/username` with playtime and game library
 - **Web dashboard** — edit your profile, customize accent color and CSS
 - **Steam hours on profile** — connect your Steam account in the dashboard to show Steam playtime on your public profile
+- **Reviews** — leave and read reviews for any game, with upvotes and replies, stored on your own server
+- **HowLongToBeat** — game completion times proxied through your server
+- **ProtonDB** — Linux compatibility ratings proxied through your server
+- **Game catalogue** *(experimental)* — search and browse games via Steam Store API
 - **No subscription** — works without Hydra Cloud, unlimited cloud save slots
 
 ## Requirements
@@ -47,6 +51,17 @@ PUBLIC_URL=http://your-server:3000  # shown in the web dashboard
 3. Enter your server URL and `API_TOKEN`
 4. Click **Save** — a login window opens
 5. Register or log in — the launcher connects automatically
+
+## Optional features
+
+In **Settings → Self-Hosted API** you can enable individual toggles:
+
+| Toggle | What it does |
+|---|---|
+| Game catalogue *(experimental)* | Search and browse games via Steam Store API instead of Hydra Cloud |
+| Reviews | Read and write game reviews stored on your server |
+| HowLongToBeat | Proxy HLTB data through your server |
+| ProtonDB | Proxy ProtonDB ratings through your server |
 
 ## Web dashboard
 
