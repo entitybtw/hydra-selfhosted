@@ -4,6 +4,8 @@ Self-hosted API backend for the [entitybtw/hydra](https://github.com/entitybtw/h
 
 Replaces Hydra Cloud with your own server — cloud saves, achievements, user accounts, profile images, and a web dashboard, all on your own hardware.
 
+![Screenshot](./images/screenshot.png)
+
 ## Features
 
 - **Cloud saves** — upload and restore game save backups (`.tar` archives via Ludusavi)
