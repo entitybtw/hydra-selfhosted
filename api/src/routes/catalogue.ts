@@ -4,7 +4,6 @@ import axios from "axios";
 const STEAM_SEARCH = "https://store.steampowered.com/api/storesearch";
 const STEAM_DETAILS = "https://store.steampowered.com/api/appdetails";
 const STEAM_FEATURED = "https://store.steampowered.com/api/featured";
-const STEAM_FEATURED_CATEGORIES = "https://store.steampowered.com/api/featuredcategories";
 const HLTB_API = "https://howlongtobeat.com/api/search";
 
 const detailsCache = new Map<string, { data: any; ts: number }>();
@@ -44,22 +43,20 @@ function steamItemToAsset(item: any) {
 }
 
 export async function catalogueRoutes(app: FastifyInstance) {
-  // GET /catalogue/:category — home page sections (featured, new_releases, top_sellers, etc.)
+  // GET /catalogue/:category — home page sections
   app.get("/catalogue/:category", async (
     req: FastifyRequest<{ Params: { category: string }; Querystring: { take?: string; skip?: string } }>,
   ) => {
     const { category } = req.params;
     const take = parseInt(req.query.take ?? "12");
 
-    if (category === "featured" || category === "top_sellers" || category === "new_releases" || category === "specials") {
-      const res = await axios.get(STEAM_FEATURED, { timeout: 8000 }).catch(() => null);
-      const items: any[] = res?.data?.[category]?.items ?? res?.data?.featured_win ?? [];
-      return items.slice(0, take).map(steamItemToAsset);
-    }
-
-    // fallback: use featuredcategories
-    const res = await axios.get(STEAM_FEATURED_CATEGORIES, { timeout: 8000 }).catch(() => null);
-    const items: any[] = res?.data?.[category]?.items ?? [];
+    const res = await axios.get(STEAM_FEATURED, { timeout: 8000 }).catch(() => null);
+    // hot → top_sellers, weekly → new_releases, achievements → specials (fallback to featured_win)
+    const steamKey = category === "hot" ? "top_sellers"
+      : category === "weekly" ? "new_releases"
+      : category === "achievements" ? "specials"
+      : "top_sellers";
+    const items: any[] = res?.data?.[steamKey]?.items ?? res?.data?.featured_win ?? [];
     return items.slice(0, take).map(steamItemToAsset);
   });
 
