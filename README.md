@@ -16,7 +16,6 @@ Run your own server for cloud saves, accounts, profiles, and game data — no Hy
 - **Reviews** — leave and read reviews for any game, with upvotes and replies, stored on your own server
 - **HowLongToBeat** — game completion times proxied through your server
 - **ProtonDB** — Linux compatibility ratings proxied through your server
-- **Game catalogue** *(experimental)* — search and browse games via Steam Store API
 - **No subscription** — works without Hydra Cloud, unlimited cloud save slots
 
 ## Requirements
@@ -58,7 +57,6 @@ In **Settings → Self-Hosted API** you can enable individual toggles:
 
 | Toggle | What it does |
 |---|---|
-| Game catalogue *(experimental)* | Search and browse games via Steam Store API instead of Hydra Cloud |
 | Reviews | Read and write game reviews stored on your server |
 | HowLongToBeat | Proxy HLTB data through your server |
 | ProtonDB | Proxy ProtonDB ratings through your server |
