@@ -53,37 +53,37 @@ function fmtHours(seconds: number) {
 const CSS = `
   :root{--bg:#0d0d0d;--bg2:#151515;--bg3:#1e1e1e;--border:#2a2a2a;--accent:#7b68ee;--text:#e0e0e0;--sub:#888;--err:#e05c5c}
   *{box-sizing:border-box;margin:0;padding:0}
-  body{background:var(--bg);color:var(--text);font-family:'Courier New',monospace;min-height:100vh;display:flex;align-items:flex-start;justify-content:center;padding:20px}
-  .card{background:var(--bg2);border:1px solid var(--border);border-radius:8px;padding:32px;width:100%;max-width:480px}
+  body{background:#111;color:#e1e1e1;font-family:"Inter",system-ui,sans-serif;min-height:100vh;display:flex;align-items:flex-start;justify-content:center;padding:40px 20px}
+  .card{background:#1a1a1a;border:1px solid #2a2a2a;border-radius:10px;padding:32px;width:100%;max-width:420px}
   .card.wide{max-width:720px;padding:0}
-  h1{font-size:18px;color:var(--accent);margin-bottom:6px}
-  h2{font-size:15px;color:var(--sub);margin-bottom:24px;font-weight:normal}
-  h3{font-size:13px;color:var(--sub);margin:24px 0 12px;text-transform:uppercase;letter-spacing:.08em}
-  label{display:block;font-size:12px;color:var(--sub);margin-bottom:4px}
-  input,textarea{width:100%;background:var(--bg3);border:1px solid var(--border);border-radius:4px;padding:8px 10px;color:var(--text);font-family:inherit;font-size:13px;outline:none;transition:border .15s}
-  input:focus,textarea:focus{border-color:var(--accent)}
+  h1{font-size:20px;font-weight:700;color:#fff;margin-bottom:4px;letter-spacing:-.3px}
+  h2{font-size:13px;color:#888;margin-bottom:24px;font-weight:400}
+  h3{font-size:11px;color:#666;margin:24px 0 10px;text-transform:uppercase;letter-spacing:.1em;font-weight:600}
+  label{display:block;font-size:12px;color:#888;margin-bottom:4px;font-weight:500}
+  input,textarea{width:100%;background:#111;border:1px solid #2a2a2a;border-radius:6px;padding:9px 12px;color:#e1e1e1;font-family:inherit;font-size:13px;outline:none;transition:border .15s}
+  input:focus,textarea:focus{border-color:var(--accent,#7b68ee)}
   textarea{resize:vertical;min-height:60px}
   .field{margin-bottom:14px}
-  button,.btn{background:var(--accent);color:var(--btn-text,#fff);border:none;border-radius:4px;padding:9px 18px;font-family:inherit;font-size:13px;cursor:pointer;width:100%;transition:opacity .15s}
+  button,.btn{background:var(--accent,#7b68ee);color:var(--btn-text,#fff);border:none;border-radius:6px;padding:10px 18px;font-family:inherit;font-size:13px;font-weight:500;cursor:pointer;width:100%;transition:opacity .15s}
   button:hover,.btn:hover{opacity:.85}
-  .btn-ghost{background:transparent;border:1px solid var(--border);color:var(--sub)}
-  .btn-ghost:hover{border-color:var(--accent);color:var(--text)}
-  .err{background:#2a1010;border:1px solid var(--err);border-radius:4px;padding:8px 12px;font-size:12px;color:var(--err);margin-bottom:14px}
-  .ok{background:#0f2a1a;border:1px solid #3a7a4a;border-radius:4px;padding:8px 12px;font-size:12px;color:#5cb87a;margin-bottom:14px}
-  a{color:var(--accent);text-decoration:none}
+  .btn-ghost{background:transparent;border:1px solid #2a2a2a;color:#888}
+  .btn-ghost:hover{border-color:var(--accent,#7b68ee);color:#e1e1e1}
+  .err{background:#1f0f0f;border:1px solid #5a2020;border-radius:6px;padding:10px 14px;font-size:12px;color:#e07070;margin-bottom:14px}
+  .ok{background:#0f1f14;border:1px solid #2a6040;border-radius:6px;padding:10px 14px;font-size:12px;color:#5cb87a;margin-bottom:14px}
+  a{color:var(--accent,#7b68ee);text-decoration:none}
   a:hover{text-decoration:underline}
-  .meta{font-size:12px;color:var(--sub);text-align:center;margin-top:16px}
+  .meta{font-size:12px;color:#666;text-align:center;margin-top:16px}
   .row{display:flex;gap:10px}
   .row button{flex:1}
-  .token-box{background:var(--bg3);border:1px solid var(--border);border-radius:4px;padding:8px 10px;font-size:12px;word-break:break-all;color:var(--sub)}
-  .tab-btn{background:var(--bg3);border:1px solid var(--border);color:var(--sub);width:auto;padding:6px 14px;font-size:12px}
-  .tab-btn.active{background:var(--accent);border-color:var(--accent);color:var(--btn-text,#fff)}
+  .token-box{background:#111;border:1px solid #2a2a2a;border-radius:6px;padding:10px 12px;font-size:12px;word-break:break-all;color:#888}
+  .tab-btn{background:#1a1a1a;border:1px solid #2a2a2a;color:#888;width:auto;padding:6px 14px;font-size:12px;border-radius:6px}
+  .tab-btn.active{background:var(--accent,#7b68ee);border-color:var(--accent,#7b68ee);color:var(--btn-text,#fff)}
   .tab-btn:hover{opacity:.85}
-  th{color:var(--sub);text-align:left;padding:6px 8px;border-bottom:1px solid var(--border)}
-  td{padding:6px 8px;border-bottom:1px solid #1a1a1a;color:var(--text)}
+  th{color:#666;text-align:left;padding:6px 8px;border-bottom:1px solid #2a2a2a;font-size:11px;text-transform:uppercase;letter-spacing:.08em}
+  td{padding:8px 8px;border-bottom:1px solid #1a1a1a;color:#e1e1e1;font-size:13px}
   tr:last-child td{border-bottom:none}
-  .badge{font-size:10px;background:var(--bg3);border:1px solid var(--border);border-radius:3px;padding:1px 5px;color:var(--sub)}
-  .warn{background:#1e1a00;border:1px solid #5a4a00;border-radius:4px;padding:8px 12px;font-size:12px;color:#c8a040;margin-bottom:14px}
+  .badge{font-size:10px;background:#222;border:1px solid #2a2a2a;border-radius:4px;padding:1px 6px;color:#888}
+  .warn{background:#1a1500;border:1px solid #4a3800;border-radius:6px;padding:10px 14px;font-size:12px;color:#c8a040;margin-bottom:14px}
 `;
 
 function contrastColor(hex: string): string {
@@ -234,6 +234,8 @@ function dashboardPage(user: DbUser, games: DbGame[], msg?: string, msgType: "ok
   `, accent, user.custom_css || "");
 }
 
+const DEFAULT_PROFILE_CSS = `*{box-sizing:border-box;margin:0;padding:0}body{background:#111;color:#e1e1e1;font-family:"Inter",system-ui,sans-serif;font-size:14px;min-height:100vh}a{color:inherit;text-decoration:none}.card.wide{max-width:100%;border-radius:0;border:none;background:transparent}.card.wide>div:first-child{height:220px!important;border-radius:0}.card.wide>div:nth-child(2){max-width:960px;margin:0 auto;padding:0 32px 48px!important}.card.wide>div:nth-child(2)>div:first-child{margin-top:-56px!important;margin-bottom:24px!important;align-items:flex-end}.card.wide>div:nth-child(2)>div:first-child img,.card.wide>div:nth-child(2)>div:first-child>div:first-child{width:96px!important;height:96px!important;border-radius:12px!important;border:3px solid #111!important;box-shadow:0 4px 24px rgba(0,0,0,.6)}.card.wide h1{font-size:22px;font-weight:700;letter-spacing:-.3px;color:#fff}.card.wide h2{font-size:13px;font-weight:400;color:#888;margin-top:2px}.card.wide>div:nth-child(2)>div:nth-child(2){background:#1a1a1a;border:1px solid #2a2a2a;border-radius:10px;padding:16px 24px;gap:32px!important;margin:0 0 24px!important;display:inline-flex!important}.card.wide>div:nth-child(2)>div:nth-child(2)>div{text-align:center}.card.wide>div:nth-child(2)>div:nth-child(2) span:first-child{font-size:20px!important;font-weight:700}.tab-btn{background:transparent;border:none;border-bottom:2px solid transparent;color:#888;font-size:13px;font-weight:500;padding:8px 4px;cursor:pointer;transition:color .15s,border-color .15s}.tab-btn.active,.tab-btn:hover{color:var(--btn-text,#111);border-color:var(--accent,#8b5cf6)}.game-grid{display:grid!important;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:12px;margin-top:16px}.game-item{background:#1a1a1a;border:1px solid #2a2a2a;border-radius:8px;overflow:hidden;transition:border-color .15s,transform .15s;cursor:default}.game-item:hover{border-color:var(--accent,#8b5cf6);transform:translateY(-2px)}.game-item img{width:100%;aspect-ratio:3/2;object-fit:cover;display:block}.game-item>div{padding:8px 10px}.game-item strong{font-size:12px;font-weight:500;display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.game-item span{font-size:11px;color:#666}.card.wide p:last-child{color:#444!important;margin-top:32px!important}.card.wide p:last-child a{color:var(--accent,#8b5cf6)}`;
+
 function publicProfilePage(user: DbUser, games: DbGame[]) {
   const accent = user.accent_color || "#7b68ee";
   const totalHours = Math.floor(games.reduce((s, g) => s + g.play_time_in_seconds, 0) / 3600);
@@ -265,7 +267,7 @@ function publicProfilePage(user: DbUser, games: DbGame[]) {
         <p style="font-size:11px;color:var(--sub);margin-top:16px">Powered by <a href="https://github.com/entitybtw/hydra-selfhosted">Hydra Self-Hosted</a></p>
       </div>
     </div>
-  `, accent, user.custom_css || "");
+  `, accent, DEFAULT_PROFILE_CSS + (user.custom_css || ""));
 }
 
 function getUserFromCookie(req: FastifyRequest): DbUser | null {
