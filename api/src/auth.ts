@@ -1,6 +1,6 @@
 import jwt from "jsonwebtoken";
 
-const JWT_SECRET = process.env.JWT_SECRET ?? "change-me";
+const JWT_SECRET = process.env.API_TOKEN ?? "change-me";
 const ACCESS_TTL = 60 * 60; // 1h
 const REFRESH_TTL = 60 * 60 * 24 * 30; // 30d
 const WS_TTL = 60 * 5; // 5m
