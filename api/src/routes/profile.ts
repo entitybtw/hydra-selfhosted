@@ -142,7 +142,8 @@ export async function profileRoutes(app: FastifyInstance) {
           play_time_in_seconds = excluded.play_time_in_seconds,
           last_time_played = excluded.last_time_played,
           is_favorite = excluded.is_favorite,
-          is_pinned = excluded.is_pinned
+          is_pinned = excluded.is_pinned,
+          is_deleted = 0
       `);
 
       const tx = db.transaction((items: typeof games) => {
@@ -181,8 +182,10 @@ export async function profileRoutes(app: FastifyInstance) {
         INSERT INTO games (id, user_id, object_id, shop, title, play_time_in_seconds, last_time_played, is_favorite, is_pinned)
         VALUES (?, ?, ?, ?, ?, ?, ?, 0, 0)
         ON CONFLICT(user_id, object_id, shop) DO UPDATE SET
+          title = COALESCE(excluded.title, title),
           play_time_in_seconds = excluded.play_time_in_seconds,
-          last_time_played = excluded.last_time_played
+          last_time_played = excluded.last_time_played,
+          is_deleted = 0
       `).run(
         id, userId, g.objectId, g.shop,
         g.title ?? g.objectId,
