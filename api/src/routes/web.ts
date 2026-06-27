@@ -273,8 +273,11 @@ export async function webRoutes(app: FastifyInstance) {
   }, async (req: FastifyRequest<{ Body: Record<string, string> }>, reply: FastifyReply) => {
     try {
       verifyToken(req.body?.instance_token, "access");
-    } catch {
-      return reply.type("text/html").send(tokenGatePage("Invalid token."));
+    } catch (e: any) {
+      // allow expired tokens — just verify the signature and type
+      if (e?.name !== "TokenExpiredError") {
+        return reply.type("text/html").send(tokenGatePage("Invalid token."));
+      }
     }
     return reply
       .setCookie("gate_ok", "1", { path: "/", httpOnly: true, maxAge: 60 * 60 * 24 * 7 })
