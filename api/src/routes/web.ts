@@ -267,9 +267,19 @@ function getUserFromCookie(req: FastifyRequest): DbUser | null {
 }
 
 export async function webRoutes(app: FastifyInstance) {
-  app.get("/", async (req: FastifyRequest, reply: FastifyReply) => {
+  app.get("/", async (req: FastifyRequest<{ Querystring: { token?: string } }>, reply: FastifyReply) => {
     const user = getUserFromCookie(req);
     if (user) return reply.redirect("/web/dashboard");
+    // Auto-gate if token passed in query
+    const queryToken = (req.query as any).token;
+    if (queryToken) {
+      const secret = process.env.API_TOKEN;
+      if (secret && queryToken === secret) {
+        return reply
+          .setCookie("gate_ok", "1", { path: "/", httpOnly: true, maxAge: 60 * 60 * 24 * 7 })
+          .redirect("/");
+      }
+    }
     const gate = (req as any).cookies?.["gate_ok"];
     if (gate !== "1") return reply.type("text/html").send(tokenGatePage());
     return reply.type("text/html").send(loginPage());
