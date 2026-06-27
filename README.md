@@ -1,85 +1,62 @@
 # hydra-selfhosted
 
-Self-hosted API backend for the [entitybtw/hydra](https://github.com/entitybtw/hydra) fork of Hydra Launcher.
+Self-hosted backend for the [entitybtw/hydra](https://github.com/entitybtw/hydra) fork of Hydra Launcher.
 
-Replaces Hydra Cloud with your own server — cloud saves, achievements, user accounts, profile images, and a web dashboard, all on your own hardware.
+Run your own server for cloud saves, accounts, and profiles — no Hydra Cloud subscription needed.
 
 ![Screenshot](./images/screenshot.png)
 
-## Features
+## What you get
 
-- **Cloud saves** — upload and restore game save backups (`.tar` archives via Ludusavi)
-- **Achievements** — store unlocked achievements per user per game
-- **User accounts** — register/login with username + password, bcrypt hashing, JWT auth
-- **Profile** — display name, bio, profile image, background image, accent color, custom CSS
-- **Steam integration** — sync playtime from Steam via Steam Web API (every 30 min)
-- **Web dashboard** — manage your profile, Steam integration, and library at `/`
-- **Public profiles** — public profile page at `/u/:username`
-- **Friends** — friend requests and friend list
-- **No subscription required** — always treated as subscribed (unlimited cloud save slots)
-- **API token gate** — protect the web dashboard with your `API_TOKEN`
+- **Cloud saves** — game save backups stored on your own server
+- **Accounts** — register and log in with a username and password
+- **Public profile** — shareable page at `/u/username` with playtime and game library
+- **Web dashboard** — edit your profile, set up Steam sync, customize accent color and CSS
+- **Steam integration** — connect your Steam account to sync playtime automatically every 30 minutes
+- **No subscription** — works without Hydra Cloud, unlimited cloud save slots
 
 ## Requirements
 
 - Docker + Docker Compose
 
-## Quick start
+## Setup
 
 ```bash
 git clone https://github.com/entitybtw/hydra-selfhosted.git
 cd hydra-selfhosted
 cp .env.example .env
-```
-
-Edit `.env`:
-
-```env
-API_TOKEN=your-random-secret        # required — used to sign JWTs and gate the web UI
-PORT=3000                           # port to expose
-SESSION_TTL_DAYS=30                 # how long launcher sessions last (default: 30)
-PUBLIC_URL=http://your-server:3000  # shown in the web dashboard
-```
-
-Then start:
-
-```bash
+# edit .env — set API_TOKEN to a random secret string
 docker compose up -d --build
 ```
 
-API will be available at `http://localhost:3000`.
+The server runs on port 3000 by default.
+
+## .env options
+
+```env
+API_TOKEN=your-random-secret        # required
+PORT=3000
+SESSION_TTL_DAYS=30                 # launcher session duration (default 30)
+PUBLIC_URL=http://your-server:3000  # shown in the web dashboard
+```
 
 ## Connecting to Hydra Launcher
 
 1. Open the [entitybtw/hydra](https://github.com/entitybtw/hydra) fork
-2. Go to **Settings → Self-Hosted API**
-3. Enter your server URL (e.g. `http://192.168.1.100:3000`)
-4. Enter your `API_TOKEN` as the instance token
-5. Click **Save** — a login/register window will open
-6. Register or log in — the launcher connects automatically
+2. **Settings → Self-Hosted API**
+3. Enter your server URL and `API_TOKEN`
+4. Click **Save** — a login window opens
+5. Register or log in — the launcher connects automatically
 
 ## Web dashboard
 
-Open `http://your-server:3000` in a browser, enter your `API_TOKEN`, then log in.
+Go to `http://your-server:3000`, enter your `API_TOKEN`, then log in.
 
-From the dashboard you can:
-- Edit display name, bio, accent color, and custom CSS
-- Set up Steam integration (SteamID64 + Steam Web API key)
-- Browse your Hydra and Steam library
-- Change your password
-- View your public profile
+From the dashboard you can edit your profile, set up Steam integration, browse your library, change your password, and view your public profile.
 
 ## Data
 
-All data is stored in `./data/`:
-
-```
-data/
-├── hydra.db          — SQLite database (users, games, achievements, artifacts)
-├── artifacts/        — cloud save tar archives
-└── images/           — profile and background images
-```
-
-Back up the `data/` folder to preserve everything.
+Everything is stored in `./data/` — back this folder up to preserve all user data.
 
 ## Updating
 
@@ -87,12 +64,4 @@ Back up the `data/` folder to preserve everything.
 git fetch origin && git checkout origin/main -- api/ docker-compose.yml && docker compose up --build -d
 ```
 
-Your `.env` and `data/` are never touched by updates.
-
-## Stack
-
-- **Node.js** + **Fastify 5** (TypeScript)
-- **SQLite** via `better-sqlite3`
-- **bcryptjs** for password hashing
-- **JWT** via `jsonwebtoken`
-- **Docker** for deployment
+Your `.env` and `data/` are never modified by updates.
