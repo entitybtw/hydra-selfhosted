@@ -145,4 +145,34 @@ export async function catalogueRoutes(app: FastifyInstance) {
     };
   });
 
+  app.get("/games/:shop/:objectId/how-long-to-beat", async (
+    req: FastifyRequest<{ Params: { shop: string; objectId: string } }>,
+    reply
+  ) => {
+    const { objectId } = req.params;
+    const d = await fetchSteamDetails(objectId).catch(() => null);
+    if (!d) return reply.code(404).send({ error: "not found" });
+    const res = await axios.post("https://howlongtobeat.com/api/search", {
+      searchType: "games", searchTerms: d.name.split(" "), searchPage: 1, size: 1,
+      searchOptions: { games: { userId: 0, platform: "", sortCategory: "popular", rangeCategory: "main", rangeTime: { min: 0, max: 0 }, gameplay: { perspective: "", flow: "", genre: "" }, modifier: "" }, filter: "", sort: 0, randomizer: 0 },
+    }, { headers: { "Content-Type": "application/json", "Referer": "https://howlongtobeat.com", "User-Agent": "Mozilla/5.0" }, timeout: 8000 }).catch(() => null);
+    const game = res?.data?.data?.[0];
+    if (!game) return null;
+    return {
+      mainStory: game.comp_main ? Math.round(game.comp_main / 3600) : null,
+      mainExtra: game.comp_plus ? Math.round(game.comp_plus / 3600) : null,
+      completionist: game.comp_100 ? Math.round(game.comp_100 / 3600) : null,
+    };
+  });
+
+  app.get("/games/:shop/:objectId/protondb", async (
+    req: FastifyRequest<{ Params: { shop: string; objectId: string } }>,
+    reply
+  ) => {
+    const { objectId } = req.params;
+    const res = await axios.get(`https://www.protondb.com/api/v1/reports/summaries/${objectId}.json`, { timeout: 8000 }).catch(() => null);
+    if (!res?.data) return reply.code(404).send({ error: "not found" });
+    return res.data;
+  });
+
 }
