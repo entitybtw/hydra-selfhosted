@@ -43,16 +43,27 @@ export async function catalogueRoutes(app: FastifyInstance) {
     const res = await axios.get(STEAM_SEARCH, { params, timeout: 8000 }).catch(() => null);
     const items: any[] = res?.data?.items ?? [];
 
-    const edges = items.slice(skip, skip + take).map((item: any) => ({
-      id: String(item.id),
-      objectId: String(item.id),
-      title: item.name,
-      shop: "steam" as const,
-      genres: [],
-      releaseYear: null,
-      libraryImageUrl: `https://shared.steamstatic.com/store_item_assets/steam/apps/${item.id}/header.jpg`,
-      downloadSources: [],
+    const sliced = items.slice(skip, skip + take);
+
+    const edgesWithDetails = await Promise.all(sliced.map(async (item: any) => {
+      const d = await fetchSteamDetails(String(item.id)).catch(() => null);
+      const genres: string[] = (d?.genres ?? []).map((g: any) => g.description);
+      return {
+        id: String(item.id),
+        objectId: String(item.id),
+        title: item.name,
+        shop: "steam" as const,
+        genres,
+        releaseYear: d?.release_date?.date ? parseInt(d.release_date.date.split(",").pop()?.trim() ?? "0") : null,
+        libraryImageUrl: `https://shared.steamstatic.com/store_item_assets/steam/apps/${item.id}/header.jpg`,
+        downloadSources: [],
+      };
     }));
+
+    const genres: string[] = req.body?.genres ?? [];
+    const edges = genres.length
+      ? edgesWithDetails.filter(e => genres.some(g => e.genres.includes(g)))
+      : edgesWithDetails;
 
     return { edges, count: items.length };
   });
