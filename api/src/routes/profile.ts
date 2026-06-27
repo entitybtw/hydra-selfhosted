@@ -262,6 +262,24 @@ export async function profileRoutes(app: FastifyInstance) {
   );
 
   app.put(
+    "/profile/games/:shop/:objectId/playtime",
+    { preHandler: requireAuth },
+    async (
+      req: FastifyRequest<{
+        Params: { shop: string; objectId: string };
+        Body: { playTimeInSeconds: number };
+      }>
+    ) => {
+      const userId = (req as Req).userId;
+      const { shop, objectId } = req.params;
+      db.prepare(
+        "UPDATE games SET play_time_in_seconds = ? WHERE user_id = ? AND object_id = ? AND shop = ?"
+      ).run(req.body.playTimeInSeconds, userId, objectId, shop);
+      return {};
+    }
+  );
+
+  app.put(
     "/profile/games/:shop/:objectId/favorite",
     { preHandler: requireAuth },
     async (req: FastifyRequest<{ Params: { shop: string; objectId: string } }>) => {
