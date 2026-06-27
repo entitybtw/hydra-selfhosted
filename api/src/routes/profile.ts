@@ -84,6 +84,7 @@ function formatGame(g: DbGame) {
     downloadSources: [],
     platform: null,
     createdAt: null,
+    executablePath: (g as any).executable_path ?? null,
   };
 }
 
@@ -224,12 +225,13 @@ export async function profileRoutes(app: FastifyInstance) {
           playTimeInSeconds?: number;
           lastTimePlayed?: string | null;
           title?: string;
+          executablePath?: string | null;
         };
       }>
     ) => {
       const userId = (req as Req).userId;
       const { shop, objectId } = req.params;
-      const { playTimeInSeconds, lastTimePlayed, title } = req.body;
+      const { playTimeInSeconds, lastTimePlayed, title, executablePath } = req.body;
 
       const existing = db
         .prepare("SELECT id FROM games WHERE user_id = ? AND object_id = ? AND shop = ?")
@@ -259,6 +261,10 @@ export async function profileRoutes(app: FastifyInstance) {
             objectId,
             shop
           );
+        if (executablePath !== undefined)
+          db.prepare(
+            "UPDATE games SET executable_path = ? WHERE user_id = ? AND object_id = ? AND shop = ?"
+          ).run(executablePath, userId, objectId, shop);
       }
       return {};
     }
