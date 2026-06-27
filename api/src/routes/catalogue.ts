@@ -1,16 +1,8 @@
 import { FastifyInstance, FastifyRequest } from "fastify";
 import axios from "axios";
-import { db } from "../db";
 
 const STEAM_SEARCH = "https://store.steampowered.com/api/storesearch";
 const STEAM_DETAILS = "https://store.steampowered.com/api/appdetails";
-const STEAM_ACHIEVEMENTS = "https://api.steampowered.com/ISteamUserStats/GetSchemaForGame/v2";
-
-// Get a steam api key from any user who has one configured
-function getAnyApiKey(): string | null {
-  const row = db.prepare("SELECT steam_api_key FROM users WHERE steam_api_key IS NOT NULL LIMIT 1").get() as { steam_api_key: string } | undefined;
-  return row?.steam_api_key ?? null;
-}
 
 const detailsCache = new Map<string, { data: any; ts: number }>();
 const CACHE_TTL = 1000 * 60 * 60 * 24; // 24h
@@ -131,29 +123,4 @@ export async function catalogueRoutes(app: FastifyInstance) {
     };
   });
 
-  // Achievement definitions — mirrors /games/:shop/:objectId/achievements
-  app.get("/games/:shop/:objectId/achievements", async (
-    req: FastifyRequest<{ Params: { shop: string; objectId: string } }>,
-    reply
-  ) => {
-    const { shop, objectId } = req.params;
-    if (shop !== "steam") return [];
-
-    const apiKey = getAnyApiKey();
-    if (!apiKey) return [];
-
-    const res = await axios.get(STEAM_ACHIEVEMENTS, {
-      params: { key: apiKey, appid: objectId, l: "english" },
-      timeout: 8000,
-    }).catch(() => null);
-
-    const achievements = res?.data?.game?.availableGameStats?.achievements ?? [];
-    return achievements.map((a: any) => ({
-      name: a.name,
-      displayName: a.displayName,
-      description: a.description ?? "",
-      icon: a.icon,
-      icongray: a.icongray,
-    }));
-  });
 }
