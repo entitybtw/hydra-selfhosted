@@ -8,7 +8,6 @@ import { imagesRoutes } from "./routes/images";
 import { webRoutes } from "./routes/web";
 import { friendsRoutes } from "./routes/friends";
 import { catalogueRoutes } from "./routes/catalogue";
-import { reviewsRoutes } from "./routes/reviews";
 import { startSteamSyncScheduler } from "./steam-sync";
 
 const app = Fastify({ logger: true });
@@ -39,7 +38,6 @@ app.register(imagesRoutes);
 app.register(webRoutes);
 app.register(friendsRoutes);
 app.register(catalogueRoutes);
-app.register(reviewsRoutes);
 
 app.get("/health", async () => ({ status: "ok" }));
 
