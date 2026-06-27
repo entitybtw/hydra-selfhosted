@@ -15,7 +15,7 @@ db.pragma("journal_mode = WAL");
 db.pragma("foreign_keys = ON");
 
 // Migrations for existing databases
-for (const col of ["steam_id", "steam_api_key", "accent_color"]) {
+for (const col of ["steam_id", "steam_api_key", "accent_color", "custom_css"]) {
   try { db.exec(`ALTER TABLE users ADD COLUMN ${col} TEXT`); } catch {}
 }
 

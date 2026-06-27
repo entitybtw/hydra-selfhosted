@@ -14,6 +14,7 @@ interface DbUser {
   steam_id: string | null;
   steam_api_key: string | null;
   accent_color: string | null;
+  custom_css: string | null;
   created_at: number;
 }
 
@@ -83,8 +84,8 @@ function contrastColor(hex: string): string {
   return (r * 299 + g * 587 + b * 114) / 1000 > 128 ? "#111111" : "#ffffff";
 }
 
-function page(title: string, body: string, accent = "#7b68ee") {
-  return `<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${h(title)} — Hydra Self-Hosted</title><style>${CSS}:root{--accent:${accent};--btn-text:${contrastColor(accent)}}</style></head><body>${body}</body></html>`;
+function page(title: string, body: string, accent = "#7b68ee", customCss = "") {
+  return `<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${h(title)} — Hydra Self-Hosted</title><style>${CSS}:root{--accent:${accent};--btn-text:${contrastColor(accent)}}${customCss ? customCss : ""}</style></head><body>${body}</body></html>`;
 }
 
 function tokenGatePage(error?: string) {
@@ -193,6 +194,7 @@ function dashboardPage(user: DbUser, games: DbGame[], msg?: string, msgType: "ok
         <div class="field"><label>Display name</label><input name="display_name" value="${h(user.display_name)}" maxlength="64"></div>
         <div class="field"><label>Bio</label><textarea name="bio" maxlength="200">${h(user.bio)}</textarea></div>
         <div class="field"><label>Accent color</label><div style="display:flex;gap:8px;align-items:center"><input type="color" id="accent_picker" name="accent_color" value="${h(accent)}" style="width:40px;height:32px;padding:2px;cursor:pointer" oninput="document.getElementById('accent_hex').value=this.value"><input id="accent_hex" name="accent_color_hex" value="${h(accent)}" maxlength="7" style="flex:1" placeholder="#7b68ee" oninput="if(/^#[0-9a-fA-F]{6}$/.test(this.value))document.getElementById('accent_picker').value=this.value"></div></div>
+        <div class="field"><label>Custom CSS <span style="color:var(--sub);font-size:11px">(applied to dashboard &amp; public profile)</span></label><textarea name="custom_css" rows="6" style="font-family:monospace;font-size:12px" placeholder="/* e.g. body { background: #000; } */">${h(user.custom_css || "")}</textarea></div>
         <button type="submit">Save profile</button>
       </form>
 
@@ -218,10 +220,7 @@ function dashboardPage(user: DbUser, games: DbGame[], msg?: string, msgType: "ok
       </div>
       </div>
     </div>
-  `, accent);
-}
-
-function publicProfilePage(user: DbUser, games: DbGame[]) {
+  `, accent, user.custom_css || "");(user: DbUser, games: DbGame[]) {
   const accent = user.accent_color || "#7b68ee";
   const totalHours = Math.floor(games.reduce((s, g) => s + g.play_time_in_seconds, 0) / 3600);
   const hydraGames = [...games].filter(g => g.shop !== "steam" || !user.steam_id)
@@ -252,7 +251,7 @@ function publicProfilePage(user: DbUser, games: DbGame[]) {
         <p style="font-size:11px;color:var(--sub);margin-top:16px">Powered by <a href="https://github.com/entitybtw/hydra-selfhosted">Hydra Self-Hosted</a></p>
       </div>
     </div>
-  `, accent);
+  `, accent, user.custom_css || "");
 }
 
 function getUserFromCookie(req: FastifyRequest): DbUser | null {
@@ -372,11 +371,11 @@ export async function webRoutes(app: FastifyInstance) {
   }, async (req: FastifyRequest<{ Body: Record<string, string> }>, reply: FastifyReply) => {
     const user = getUserFromCookie(req);
     if (!user) return reply.redirect("/");
-    const { display_name, bio, accent_color, accent_color_hex } = req.body ?? {};
+    const { display_name, bio, accent_color, accent_color_hex, custom_css } = req.body ?? {};
     const accent = (/^#[0-9a-fA-F]{6}$/.test(accent_color_hex ?? "") ? accent_color_hex
       : /^#[0-9a-fA-F]{6}$/.test(accent_color ?? "") ? accent_color : null);
-    db.prepare("UPDATE users SET display_name = ?, bio = ?, accent_color = ? WHERE id = ?")
-      .run((display_name ?? "").slice(0, 64), (bio ?? "").slice(0, 200), accent, user.id);
+    db.prepare("UPDATE users SET display_name = ?, bio = ?, accent_color = ?, custom_css = ? WHERE id = ?")
+      .run((display_name ?? "").slice(0, 64), (bio ?? "").slice(0, 200), accent, (custom_css ?? "").slice(0, 8000), user.id);
     const updated = db.prepare("SELECT * FROM users WHERE id = ?").get(user.id) as DbUser;
     const games = db.prepare("SELECT * FROM games WHERE user_id = ? AND is_deleted = 0").all(user.id) as DbGame[];
     return reply.type("text/html").send(dashboardPage(updated, games, "Profile updated.", "ok"));
