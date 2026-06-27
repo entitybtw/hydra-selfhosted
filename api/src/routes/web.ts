@@ -91,10 +91,10 @@ function tokenGatePage(error?: string) {
   return page("Access", `
     <div class="card">
       <h1>⬡ Hydra Self-Hosted</h1>
-      <h2>Enter instance token to continue</h2>
+      <h2>Enter your API token to continue</h2>
       ${error ? `<div class="err">${h(error)}</div>` : ""}
       <form method="POST" action="/web/gate">
-        <div class="field"><label>Instance Token</label><input name="instance_token" type="password" autofocus required></div>
+        <div class="field"><label>API Token</label><input name="instance_token" type="password" autofocus required></div>
         <button type="submit">Continue</button>
       </form>
     </div>
@@ -260,26 +260,21 @@ function getUserFromCookie(req: FastifyRequest): DbUser | null {
 }
 
 export async function webRoutes(app: FastifyInstance) {
-  // Landing — show token gate if INSTANCE_TOKEN is set, else login directly
   app.get("/", async (req: FastifyRequest, reply: FastifyReply) => {
     const user = getUserFromCookie(req);
     if (user) return reply.redirect("/web/dashboard");
-    const instanceToken = process.env.INSTANCE_TOKEN;
-    if (instanceToken) {
-      const gate = (req as any).cookies?.["gate_ok"];
-      if (gate !== "1") return reply.type("text/html").send(tokenGatePage());
-    }
+    const gate = (req as any).cookies?.["gate_ok"];
+    if (gate !== "1") return reply.type("text/html").send(tokenGatePage());
     return reply.type("text/html").send(loginPage());
   });
 
-  // Token gate handler
   app.post("/web/gate", {
     config: { rawBody: true },
   }, async (req: FastifyRequest<{ Body: Record<string, string> }>, reply: FastifyReply) => {
-    const instanceToken = process.env.INSTANCE_TOKEN;
-    if (!instanceToken) return reply.redirect("/");
-    if (req.body?.instance_token !== instanceToken) {
-      return reply.type("text/html").send(tokenGatePage("Invalid instance token."));
+    try {
+      verifyToken(req.body?.instance_token, "access");
+    } catch {
+      return reply.type("text/html").send(tokenGatePage("Invalid token."));
     }
     return reply
       .setCookie("gate_ok", "1", { path: "/", httpOnly: true, maxAge: 60 * 60 * 24 * 7 })
