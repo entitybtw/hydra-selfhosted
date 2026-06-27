@@ -181,6 +181,13 @@ function dashboardPage(user: DbUser, games: DbGame[], msg?: string, msgType: "ok
         </div>
       ${msg ? `<div class="${msgType}">${h(msg)}</div>` : ""}
 
+      <h3>Security</h3>
+      <form method="POST" action="/web/password">
+        <div class="field"><label>Current password</label><input name="current_password" type="password" required autocomplete="current-password"></div>
+        <div class="field"><label>New password</label><input name="new_password" type="password" required minlength="6" autocomplete="new-password"></div>
+        <button type="submit">Change password</button>
+      </form>
+
       <h3>Profile</h3>
       <form method="POST" action="/web/profile">
         <div class="field"><label>Display name</label><input name="display_name" value="${h(user.display_name)}" maxlength="64"></div>
@@ -355,6 +362,27 @@ export async function webRoutes(app: FastifyInstance) {
     const updated = db.prepare("SELECT * FROM users WHERE id = ?").get(user.id) as DbUser;
     const games = db.prepare("SELECT * FROM games WHERE user_id = ? AND is_deleted = 0").all(user.id) as DbGame[];
     return reply.type("text/html").send(dashboardPage(updated, games, "Steam synced.", "ok"));
+  });
+
+  // Change password
+  app.post("/web/password", {
+    config: { rawBody: true },
+  }, async (req: FastifyRequest<{ Body: Record<string, string> }>, reply: FastifyReply) => {
+    const user = getUserFromCookie(req);
+    if (!user) return reply.redirect("/");
+    const { current_password, new_password } = req.body ?? {};
+    const row = db.prepare("SELECT password_hash FROM users WHERE id = ?").get(user.id) as { password_hash: string };
+    if (row.password_hash !== hashPassword(current_password ?? "")) {
+      const games = db.prepare("SELECT * FROM games WHERE user_id = ? AND is_deleted = 0").all(user.id) as DbGame[];
+      return reply.type("text/html").send(dashboardPage(user, games, "Current password is incorrect.", "err"));
+    }
+    if (!new_password || new_password.length < 6) {
+      const games = db.prepare("SELECT * FROM games WHERE user_id = ? AND is_deleted = 0").all(user.id) as DbGame[];
+      return reply.type("text/html").send(dashboardPage(user, games, "New password must be at least 6 characters.", "err"));
+    }
+    db.prepare("UPDATE users SET password_hash = ? WHERE id = ?").run(hashPassword(new_password), user.id);
+    const games = db.prepare("SELECT * FROM games WHERE user_id = ? AND is_deleted = 0").all(user.id) as DbGame[];
+    return reply.type("text/html").send(dashboardPage(user, games, "Password changed.", "ok"));
   });
 
   // Logout
