@@ -42,9 +42,9 @@ function fmtHours(seconds: number) {
 const CSS = `
   :root{--bg:#0d0d0d;--bg2:#151515;--bg3:#1e1e1e;--border:#2a2a2a;--accent:#7b68ee;--text:#e0e0e0;--sub:#888;--err:#e05c5c}
   *{box-sizing:border-box;margin:0;padding:0}
-  body{background:var(--bg);color:var(--text);font-family:'Courier New',monospace;min-height:100vh;display:flex;align-items:center;justify-content:center;padding:20px}
+  body{background:var(--bg);color:var(--text);font-family:'Courier New',monospace;min-height:100vh;display:flex;align-items:flex-start;justify-content:center;padding:20px}
   .card{background:var(--bg2);border:1px solid var(--border);border-radius:8px;padding:32px;width:100%;max-width:480px}
-  .card.wide{max-width:720px}
+  .card.wide{max-width:720px;padding:0}
   h1{font-size:18px;color:var(--accent);margin-bottom:6px}
   h2{font-size:15px;color:var(--sub);margin-bottom:24px;font-weight:normal}
   h3{font-size:13px;color:var(--sub);margin:24px 0 12px;text-transform:uppercase;letter-spacing:.08em}
@@ -225,7 +225,7 @@ function publicProfilePage(user: DbUser, games: DbGame[]) {
 
   return page(`@${user.username}`, `
     <div class="card wide" style="padding:0;overflow:hidden">
-      ${user.background_image_url ? `<div style="height:160px;background:url('${h(user.background_image_url)}') center/cover no-repeat;position:relative"></div>` : `<div style="height:80px;background:var(--bg3)"></div>`}
+      ${user.background_image_url ? `<div style="height:120px;background:url('${h(user.background_image_url)}') center/cover no-repeat;position:relative"></div>` : `<div style="height:60px;background:var(--bg3)"></div>`}
       <div style="padding:0 32px 32px">
         <div style="display:flex;align-items:flex-end;gap:16px;margin-top:${user.background_image_url ? "-40px" : "-20px"};margin-bottom:16px">
           ${user.profile_image_url
