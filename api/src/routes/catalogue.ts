@@ -31,17 +31,28 @@ export async function catalogueRoutes(app: FastifyInstance) {
     req: FastifyRequest<{ Body: { title?: string; take?: number; skip?: number; sortBy?: string; sortOrder?: string; genres?: string[]; developers?: string[]; publishers?: string[] } }>,
     reply
   ) => {
-    const { title = "", take = 20, skip = 0, sortBy = "popularity" } = req.body ?? {};
+    const { title = "", take = 20, skip = 0 } = req.body ?? {};
 
-    const params: Record<string, any> = {
-      term: title || "a",
-      l: "english",
-      cc: "us",
-      json: 1,
-    };
+    // Steam storesearch returns max 10 per page — fetch enough pages in parallel
+    const totalNeeded = skip + take;
+    const pagesNeeded = Math.ceil(totalNeeded / 10);
+    const pageNumbers = Array.from({ length: Math.min(pagesNeeded, 5) }, (_, i) => i + 1);
 
-    const res = await axios.get(STEAM_SEARCH, { params, timeout: 8000 }).catch(() => null);
-    const items: any[] = res?.data?.items ?? [];
+    const pageResults = await Promise.all(pageNumbers.map(page =>
+      axios.get(STEAM_SEARCH, {
+        params: { term: title || "a", l: "english", cc: "us", json: 1, page },
+        timeout: 8000,
+      }).then(r => r.data?.items ?? []).catch(() => [] as any[])
+    ));
+
+    // dedupe by id
+    const seen = new Set<string>();
+    const items: any[] = [];
+    for (const page of pageResults) {
+      for (const item of page) {
+        if (!seen.has(String(item.id))) { seen.add(String(item.id)); items.push(item); }
+      }
+    }
 
     const sliced = items.slice(skip, skip + take);
 
