@@ -233,13 +233,35 @@ function dashboardTabsHtml(hydraGames: DbGame[], steamGames: DbGame[], hasSteam:
   `;
 }
 
-
+function dashboardPage(user: DbUser, games: DbGame[], msg?: string, msgType: "ok"|"err" = "ok") {
   const accent = user.accent_color || "#7b68ee";
   const totalHours = Math.floor(games.reduce((s, g) => s + g.play_time_in_seconds, 0) / 3600);
   const hydraGames = [...games].filter(g => g.shop !== "steam" || !user.steam_id)
     .sort((a, b) => (b.is_pinned ?? 0) - (a.is_pinned ?? 0) || b.play_time_in_seconds - a.play_time_in_seconds);
   const steamGames = [...games].filter(g => g.shop === "steam")
     .sort((a, b) => (b.is_pinned ?? 0) - (a.is_pinned ?? 0) || b.play_time_in_seconds - a.play_time_in_seconds);
+
+  const DASHBOARD_JS = [
+    "const avatarWrap=document.getElementById('avatar-overlay')?.parentElement;",
+    "const overlay=document.getElementById('avatar-overlay');",
+    "if(avatarWrap&&overlay){avatarWrap.addEventListener('mouseenter',()=>overlay.style.opacity='1');avatarWrap.addEventListener('mouseleave',()=>overlay.style.opacity='0');}",
+    "let cropOffX=0,cropOffY=0,cropDragStart=null;",
+    "const modal=document.getElementById('crop-modal');",
+    "const cropImg=document.getElementById('crop-img');",
+    "const zoomSlider=document.getElementById('crop-zoom');",
+    "const rotSlider=document.getElementById('crop-rotate');",
+    "const FRAME=300;",
+    "function updateCropTransform(){const z=parseFloat(zoomSlider.value),r=parseFloat(rotSlider.value);cropImg.style.transform='translate('+cropOffX+'px,'+cropOffY+'px) rotate('+r+'deg) scale('+z+')';}",
+    "zoomSlider.oninput=updateCropTransform;rotSlider.oninput=updateCropTransform;",
+    "cropImg.addEventListener('mousedown',e=>{cropDragStart={x:e.clientX-cropOffX,y:e.clientY-cropOffY};e.preventDefault();});",
+    "document.addEventListener('mousemove',e=>{if(!cropDragStart)return;cropOffX=e.clientX-cropDragStart.x;cropOffY=e.clientY-cropDragStart.y;updateCropTransform();});",
+    "document.addEventListener('mouseup',()=>{cropDragStart=null;});",
+    "function openCrop(input){const file=input.files[0];if(!file)return;const url=URL.createObjectURL(file);cropImg.onload=()=>{cropImg.style.width=cropImg.style.height='300px';cropOffX=0;cropOffY=0;zoomSlider.value=1;rotSlider.value=0;updateCropTransform();};cropImg.src=url;modal.style.display='flex';}",
+    "function closeCrop(){modal.style.display='none';document.getElementById('avatar-input').value='';}",
+    "function applyCrop(){const canvas=document.createElement('canvas');canvas.width=canvas.height=FRAME;const ctx=canvas.getContext('2d');ctx.save();ctx.beginPath();ctx.arc(FRAME/2,FRAME/2,FRAME/2,0,Math.PI*2);ctx.clip();const z=parseFloat(zoomSlider.value),r=parseFloat(rotSlider.value)*Math.PI/180;ctx.translate(FRAME/2+cropOffX,FRAME/2+cropOffY);ctx.rotate(r);ctx.scale(z,z);ctx.drawImage(cropImg,-cropImg.naturalWidth/2,-cropImg.naturalHeight/2);ctx.restore();canvas.toBlob(blob=>{const fd=new FormData();fd.append('image',blob,'avatar.png');fetch('/web/upload-avatar',{method:'POST',body:fd}).then(()=>location.reload());closeCrop();},'image/png');}",
+    "function uploadImg(input){const file=input.files[0];if(!file)return;const fd=new FormData();fd.append('image',file);fetch('/web/upload-banner',{method:'POST',body:fd}).then(()=>location.reload());}",
+    "function removeBanner(){fetch('/web/remove-banner',{method:'POST'}).then(()=>location.reload());}",
+  ].join("\n");
 
   return page("Dashboard", `
     <div class="card wide" style="padding:0;overflow:hidden">
@@ -333,82 +355,7 @@ function dashboardTabsHtml(hydraGames: DbGame[], steamGames: DbGame[], hasSteam:
       </div>
     </div>
 
-    <script>
-    // Avatar overlay hover
-    const avatarWrap = document.getElementById('avatar-overlay')?.parentElement;
-    const overlay = document.getElementById('avatar-overlay');
-    if (avatarWrap && overlay) {
-      avatarWrap.addEventListener('mouseenter', () => overlay.style.opacity = '1');
-      avatarWrap.addEventListener('mouseleave', () => overlay.style.opacity = '0');
-    }
-
-    // Crop state
-    let cropOffX = 0, cropOffY = 0, cropDragStart = null;
-    const modal = document.getElementById('crop-modal');
-    const cropImg = document.getElementById('crop-img');
-    const zoomSlider = document.getElementById('crop-zoom');
-    const rotSlider = document.getElementById('crop-rotate');
-    const FRAME = 300;
-
-    function updateCropTransform() {
-      const z = parseFloat(zoomSlider.value);
-      const r = parseFloat(rotSlider.value);
-      cropImg.style.transform = 'translate('+cropOffX+'px,'+cropOffY+'px) rotate('+r+'deg) scale('+z+')';
-    }
-    zoomSlider.oninput = updateCropTransform;
-    rotSlider.oninput = updateCropTransform;
-
-    cropImg.addEventListener('mousedown', e => { cropDragStart = {x: e.clientX - cropOffX, y: e.clientY - cropOffY}; e.preventDefault(); });
-    document.addEventListener('mousemove', e => { if (!cropDragStart) return; cropOffX = e.clientX - cropDragStart.x; cropOffY = e.clientY - cropDragStart.y; updateCropTransform(); });
-    document.addEventListener('mouseup', () => cropDragStart = null);
-
-    function openCrop(input) {
-      const file = input.files[0]; if (!file) return;
-      const url = URL.createObjectURL(file);
-      cropImg.onload = () => {
-        const nat = Math.min(cropImg.naturalWidth, cropImg.naturalHeight);
-        cropImg.style.width = cropImg.style.height = '300px';
-        cropOffX = 0; cropOffY = 0;
-        zoomSlider.value = 1; rotSlider.value = 0;
-        updateCropTransform();
-      };
-      cropImg.src = url;
-      modal.style.display = 'flex';
-    }
-
-    function closeCrop() { modal.style.display = 'none'; document.getElementById('avatar-input').value = ''; }
-
-    function applyCrop() {
-      const canvas = document.createElement('canvas');
-      canvas.width = canvas.height = FRAME;
-      const ctx = canvas.getContext('2d');
-      ctx.save();
-      ctx.beginPath(); ctx.arc(FRAME/2, FRAME/2, FRAME/2, 0, Math.PI*2); ctx.clip();
-      const z = parseFloat(zoomSlider.value), r = parseFloat(rotSlider.value) * Math.PI / 180;
-      ctx.translate(FRAME/2 + cropOffX, FRAME/2 + cropOffY);
-      ctx.rotate(r); ctx.scale(z, z);
-      ctx.drawImage(cropImg, -cropImg.naturalWidth/2, -cropImg.naturalHeight/2);
-      ctx.restore();
-      canvas.toBlob(blob => {
-        const fd = new FormData(); fd.append('image', blob, 'avatar.png');
-        fetch('/web/upload-avatar', {method:'POST', body: fd})
-          .then(r => r.redirected ? location.href = r.url : location.reload());
-        closeCrop();
-      }, 'image/png');
-    }
-
-    // Banner upload
-    function uploadImg(input, type) {
-      const file = input.files[0]; if (!file) return;
-      const fd = new FormData(); fd.append('image', file);
-      fetch('/web/upload-banner', {method:'POST', body: fd})
-        .then(r => r.redirected ? location.href = r.url : location.reload());
-    }
-
-    function removeBanner() {
-      fetch('/web/remove-banner', {method:'POST'}).then(() => location.reload());
-    }
-    </script>
+    <script>${DASHBOARD_JS}</script>
   `, accent, user.custom_css || "");
 }
 
