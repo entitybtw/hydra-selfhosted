@@ -26,6 +26,7 @@ interface DbGame {
   shop: string;
   is_pinned?: number;
   pinned_at?: number | null;
+  is_favorite?: number;
 }
 
 function hashPassword(p: string) {
@@ -136,12 +137,13 @@ function loginPage(error?: string, launcher = false) {
 
 function tabsHtml(hydraGames: DbGame[], steamGames: DbGame[], hasSteam: boolean) {
   const PIN_ICON = `<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="currentColor" style="vertical-align:middle;margin-right:4px;opacity:0.7"><path d="M16 12V4h1V2H7v2h1v8l-2 2v2h5.2v6h1.6v-6H18v-2l-2-2z"/></svg>`;
+  const HEART_ICON = `<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="#e05c73" style="vertical-align:middle;margin-left:4px;flex-shrink:0"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg>`;
   const mkRows = (list: DbGame[]) => {
     const pinned = list.filter(g => g.is_pinned);
     const rest = list.filter(g => !g.is_pinned);
     const sorted = [...pinned, ...rest];
     return sorted.slice(0, 100).map(g =>
-      `<tr${g.is_pinned ? ' style="opacity:0.95"' : ""}><td>${g.is_pinned ? PIN_ICON : ""}${h(g.title)}</td><td>${fmtHours(g.play_time_in_seconds)}</td></tr>`
+      `<tr${g.is_pinned ? ' style="opacity:0.95"' : ""}><td>${g.is_pinned ? PIN_ICON : ""}${h(g.title)}${g.is_favorite ? HEART_ICON : ""}</td><td>${fmtHours(g.play_time_in_seconds)}</td></tr>`
     ).join("") || `<tr><td colspan="2" style="color:var(--sub)">No games yet.</td></tr>`;
   };
 
