@@ -4,19 +4,49 @@ Self-hosted backend for the [entitybtw/hydra](https://github.com/entitybtw/hydra
 
 Run your own server for cloud saves, accounts, profiles, and game data — no Hydra Cloud subscription needed.
 
-![Screenshot](./images/screenshot.png)
+## Features
 
-## What you get
+### Accounts & profiles
 
-- **Cloud saves** — game save backups stored on your own server
-- **Accounts** — register and log in with a username and password
-- **Public profile** — shareable page at `/u/username` with playtime and game library
-- **Web dashboard** — edit your profile, customize accent color and CSS
-- **Steam hours on profile** — connect your Steam account in the dashboard to show Steam playtime on your public profile
-- **Reviews** — leave and read reviews for any game, with upvotes and replies, stored on your own server
-- **HowLongToBeat** — game completion times proxied through your server
-- **ProtonDB** — Linux compatibility ratings proxied through your server
-- **No subscription** — works without Hydra Cloud, unlimited cloud save slots
+- **Accounts** — register and log in with username and password
+- **Public profile** — shareable page at `/u/username` with playtime, library, and recent activity
+- **Avatar & banner** — upload and crop a profile picture and banner image
+- **Bio and display name** — editable from the launcher or web dashboard
+- **Accent color & custom CSS** — personalize your profile appearance
+- **Steam integration** — connect your Steam account to show Steam hours and Steam library on your profile
+
+### Library & game management
+
+- **Cloud saves** — game save backups stored on your own server, unlimited slots
+- **Pin games** — pin any game to the top of your profile; pinned state syncs to the launcher sidebar
+- **Favorite games** — mark games as favorites; heart icon shown on library cards
+- **Playtime tracking** — accurate playtime recorded per game and shown on profile
+- **Recent activity** — last played games shown per tab (Hydra / Steam) with configurable visibility and section order
+
+### Web dashboard
+
+Full web interface at `http://your-server:3000`:
+
+- Edit profile: avatar (with crop editor), banner, display name, bio
+- Browse your Hydra library and Steam library (if connected)
+- Pin and unpin games, mark favorites
+- Toggle visibility of library and recent activity sections
+- Reorder sections (library above or below recent activity) per tab
+- Change password
+
+### Optional proxies
+
+| Feature | What it does |
+|---|---|
+| Reviews | Read and write game reviews stored on your server |
+| HowLongToBeat | Proxy HLTB completion times through your server |
+| ProtonDB | Proxy ProtonDB Linux ratings through your server |
+
+### Other
+
+- **No subscription required** — all features work without Hydra Cloud
+- **Friendships API stub** — enough for the launcher to work without errors
+- **Download sources** — the launcher routes `/download-sources` to the official Hydra API automatically
 
 ## Requirements
 
@@ -46,30 +76,21 @@ PUBLIC_URL=http://your-server:3000  # shown in the web dashboard
 ## Connecting to Hydra Launcher
 
 1. Open the [entitybtw/hydra](https://github.com/entitybtw/hydra) fork
-2. **Settings → Self-Hosted API**
-3. Enter your server URL and `API_TOKEN`
-4. Click **Save** — a login window opens
-5. Register or log in — the launcher connects automatically
-
-## Optional features
-
-In **Settings → Self-Hosted API** you can enable individual toggles:
-
-| Toggle | What it does |
-|---|---|
-| Reviews | Read and write game reviews stored on your server |
-| HowLongToBeat | Proxy HLTB data through your server |
-| ProtonDB | Proxy ProtonDB ratings through your server |
-
-## Web dashboard
-
-Go to `http://your-server:3000`, enter your `API_TOKEN`, then log in.
-
-From the dashboard you can edit your profile, set up Steam integration, browse your library, change your password, and view your public profile.
+2. **Settings → Integrations → Self-Hosted API**
+3. Enter your server URL and `API_TOKEN`, click **Save**
+4. A login window opens — register or sign in
+5. The launcher connects automatically and syncs your library
 
 ## Data
 
 Everything is stored in `./data/` — back this folder up to preserve all user data.
+
+```
+data/
+  hydra.db        # SQLite database (users, games, achievements, artifacts)
+  images/         # uploaded avatars and banners
+  artifacts/      # cloud save archives
+```
 
 ## Updating
 
@@ -77,4 +98,4 @@ Everything is stored in `./data/` — back this folder up to preserve all user d
 git fetch origin && git checkout origin/main -- api/ docker-compose.yml && docker compose up --build -d
 ```
 
-Your `.env` and `data/` are never modified by updates.
+Your `.env` and `data/` are never touched by updates.
