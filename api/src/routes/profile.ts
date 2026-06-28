@@ -552,7 +552,7 @@ export async function profileRoutes(app: FastifyInstance) {
 
   // Notification stubs — self-hosted has no social notifications
   app.get("/profile/notifications", { preHandler: requireAuth }, async () => {
-    return { results: [], totalNotifications: 0 };
+    return { notifications: [], pagination: { total: 0, take: 20, skip: 0, hasMore: false } };
   });
   // /profile/notifications/count is registered in friends.ts
   app.put("/profile/notifications/:id/read", { preHandler: requireAuth }, async () => {
