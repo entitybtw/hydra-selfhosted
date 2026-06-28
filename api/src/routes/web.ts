@@ -20,6 +20,7 @@ interface DbUser {
   custom_css: string | null;
   created_at: number;
   show_recent_activity: number;
+  profile_sections_order: string | null;
 }
 
 interface DbGame {
@@ -346,8 +347,33 @@ function dashboardPage(user: DbUser, games: DbGame[], msg?: string, msgType: "ok
           <input type="checkbox" name="show_recent_activity" id="show_recent" value="1"${user.show_recent_activity !== 0 ? " checked" : ""} style="width:auto">
           <label for="show_recent" style="margin:0;cursor:pointer">Show recent activity on public profile</label>
         </div>
+        <div class="field">
+          <label>Profile sections order <span style="color:var(--sub);font-size:11px">(drag to reorder)</span></label>
+          <input type="hidden" name="profile_sections_order" id="sections_order_input" value="${h(user.profile_sections_order || '["recent","library"]')}">
+          <ul id="sections-list" style="list-style:none;padding:0;margin:0;display:flex;flex-direction:column;gap:6px">${
+            (() => {
+              const order: string[] = JSON.parse(user.profile_sections_order || '["recent","library"]');
+              const labels: Record<string, string> = { recent: "Recent Activity", library: "Library" };
+              return order.map(k => `<li data-key="${k}" style="display:flex;align-items:center;gap:8px;background:var(--bg3);padding:8px 12px;border-radius:6px;cursor:grab;user-select:none"><span style="opacity:.5">⠿</span> ${labels[k] ?? k}</li>`).join("");
+            })()
+          }</ul>
+        </div>
         <button type="submit">Save profile</button>
       </form>
+      <script>
+      (function(){
+        const list = document.getElementById('sections-list');
+        const inp = document.getElementById('sections_order_input');
+        let drag = null;
+        list.querySelectorAll('li').forEach(el => {
+          el.addEventListener('dragstart', e => { drag = el; el.style.opacity = '.4'; e.dataTransfer.effectAllowed = 'move'; });
+          el.addEventListener('dragend', () => { drag.style.opacity = ''; drag = null; updateOrder(); });
+          el.addEventListener('dragover', e => { e.preventDefault(); if (drag && drag !== el) { const r = el.getBoundingClientRect(); if (e.clientY < r.top + r.height / 2) list.insertBefore(drag, el); else list.insertBefore(drag, el.nextSibling); }});
+          el.setAttribute('draggable', 'true');
+        });
+        function updateOrder() { inp.value = JSON.stringify([...list.querySelectorAll('li')].map(li => li.dataset.key)); }
+      })();
+      </script>
 
       <h3>Steam integration</h3>
       <div class="warn">Your Steam API key is stored on this server. Use a dedicated key or one with minimal permissions.</div>
@@ -425,10 +451,16 @@ function publicProfilePage(user: DbUser, games: DbGame[]) {
           <div><span style="color:${accent};font-size:18px;font-weight:bold">${totalHours.toLocaleString()}</span><br><span style="color:var(--sub)">total hours</span></div>
           ${user.steam_id ? `<div><span style="color:${accent};font-size:18px;font-weight:bold">${steamHours.toLocaleString()}</span><br><span style="color:var(--sub)">steam hours</span></div>` : ""}
         </div>
-        ${user.show_recent_activity !== 0 ? `
-        <h3 style="font-size:12px;color:var(--sub);text-transform:uppercase;letter-spacing:.08em;margin:20px 0 10px">Recent Activity</h3>
-        ${recentActivityHtml([...hydraGames, ...steamGames])}` : ""}
-        ${tabsHtml(hydraGames, steamGames, Boolean(user.steam_id))}
+        ${(() => {
+          const order: string[] = JSON.parse(user.profile_sections_order || '["recent","library"]');
+          const sectionMap: Record<string, string> = {
+            recent: user.show_recent_activity !== 0 ? `
+              <h3 style="font-size:12px;color:var(--sub);text-transform:uppercase;letter-spacing:.08em;margin:20px 0 10px">Recent Activity</h3>
+              ${recentActivityHtml([...hydraGames, ...steamGames])}` : "",
+            library: tabsHtml(hydraGames, steamGames, Boolean(user.steam_id)),
+          };
+          return order.map(k => sectionMap[k] ?? "").join("");
+        })()}
         <p style="font-size:11px;color:var(--sub);margin-top:16px">Powered by <a href="https://github.com/entitybtw/hydra-selfhosted">Hydra Self-Hosted</a></p>
       </div>
     </div>
@@ -560,7 +592,7 @@ export async function webRoutes(app: FastifyInstance) {
   }, async (req: FastifyRequest<{ Body: Record<string, string> }>, reply: FastifyReply) => {
     const user = getUserFromCookie(req);
     if (!user) return reply.redirect("/");
-    const { username, display_name, bio, accent_color, accent_color_hex, custom_css, show_recent_activity } = req.body ?? {};
+    const { username, display_name, bio, accent_color, accent_color_hex, custom_css, show_recent_activity, profile_sections_order } = req.body ?? {};
     const accent = (/^#[0-9a-fA-F]{6}$/.test(accent_color_hex ?? "") ? accent_color_hex
       : /^#[0-9a-fA-F]{6}$/.test(accent_color ?? "") ? accent_color : null);
     const newUsername = (username ?? "").replace(/[^a-zA-Z0-9_]/g, "").slice(0, 32) || user.username;
@@ -571,8 +603,8 @@ export async function webRoutes(app: FastifyInstance) {
         return reply.type("text/html").send(dashboardPage(user, games, "Username already taken.", "err"));
       }
     }
-    db.prepare("UPDATE users SET username = ?, display_name = ?, bio = ?, accent_color = ?, custom_css = ?, show_recent_activity = ? WHERE id = ?")
-      .run(newUsername, (display_name ?? "").slice(0, 64), (bio ?? "").slice(0, 200), accent, (custom_css ?? "").slice(0, 8000), show_recent_activity === "1" ? 1 : 0, user.id);
+    db.prepare("UPDATE users SET username = ?, display_name = ?, bio = ?, accent_color = ?, custom_css = ?, show_recent_activity = ?, profile_sections_order = ? WHERE id = ?")
+      .run(newUsername, (display_name ?? "").slice(0, 64), (bio ?? "").slice(0, 200), accent, (custom_css ?? "").slice(0, 8000), show_recent_activity === "1" ? 1 : 0, profile_sections_order ?? '["recent","library"]', user.id);
     const updated = db.prepare("SELECT * FROM users WHERE id = ?").get(user.id) as DbUser;
     const games = db.prepare("SELECT * FROM games WHERE user_id = ? AND is_deleted = 0").all(user.id) as DbGame[];
     return reply.type("text/html").send(dashboardPage(updated, games, "Profile updated.", "ok"));
