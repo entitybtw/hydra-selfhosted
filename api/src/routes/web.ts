@@ -24,6 +24,8 @@ interface DbGame {
   title: string;
   play_time_in_seconds: number;
   shop: string;
+  is_pinned?: number;
+  pinned_at?: number | null;
 }
 
 function hashPassword(p: string) {
@@ -133,9 +135,15 @@ function loginPage(error?: string, launcher = false) {
 }
 
 function tabsHtml(hydraGames: DbGame[], steamGames: DbGame[], hasSteam: boolean) {
-  const mkRows = (list: DbGame[]) => list.slice(0, 100).map(g =>
-    `<tr><td>${h(g.title)}</td><td>${fmtHours(g.play_time_in_seconds)}</td></tr>`
-  ).join("") || `<tr><td colspan="2" style="color:var(--sub)">No games yet.</td></tr>`;
+  const PIN_ICON = `<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="currentColor" style="vertical-align:middle;margin-right:4px;opacity:0.7"><path d="M16 12V4h1V2H7v2h1v8l-2 2v2h5.2v6h1.6v-6H18v-2l-2-2z"/></svg>`;
+  const mkRows = (list: DbGame[]) => {
+    const pinned = list.filter(g => g.is_pinned);
+    const rest = list.filter(g => !g.is_pinned);
+    const sorted = [...pinned, ...rest];
+    return sorted.slice(0, 100).map(g =>
+      `<tr${g.is_pinned ? ' style="opacity:0.95"' : ""}><td>${g.is_pinned ? PIN_ICON : ""}${h(g.title)}</td><td>${fmtHours(g.play_time_in_seconds)}</td></tr>`
+    ).join("") || `<tr><td colspan="2" style="color:var(--sub)">No games yet.</td></tr>`;
+  };
 
   const hydraRows = mkRows(hydraGames);
   const steamRows = mkRows(steamGames);
@@ -174,9 +182,9 @@ function dashboardPage(user: DbUser, games: DbGame[], msg?: string, msgType: "ok
   const accent = user.accent_color || "#7b68ee";
   const totalHours = Math.floor(games.reduce((s, g) => s + g.play_time_in_seconds, 0) / 3600);
   const hydraGames = [...games].filter(g => g.shop !== "steam" || !user.steam_id)
-    .sort((a, b) => b.play_time_in_seconds - a.play_time_in_seconds);
+    .sort((a, b) => (b.is_pinned ?? 0) - (a.is_pinned ?? 0) || b.play_time_in_seconds - a.play_time_in_seconds);
   const steamGames = [...games].filter(g => g.shop === "steam")
-    .sort((a, b) => b.play_time_in_seconds - a.play_time_in_seconds);
+    .sort((a, b) => (b.is_pinned ?? 0) - (a.is_pinned ?? 0) || b.play_time_in_seconds - a.play_time_in_seconds);
 
   return page("Dashboard", `
     <div class="card wide" style="padding:0;overflow:hidden">
@@ -240,10 +248,10 @@ function publicProfilePage(user: DbUser, games: DbGame[]) {
   const accent = user.accent_color || "#7b68ee";
   const totalHours = Math.floor(games.reduce((s, g) => s + g.play_time_in_seconds, 0) / 3600);
   const hydraGames = [...games].filter(g => g.shop !== "steam" || !user.steam_id)
-    .sort((a, b) => b.play_time_in_seconds - a.play_time_in_seconds);
+    .sort((a, b) => (b.is_pinned ?? 0) - (a.is_pinned ?? 0) || b.play_time_in_seconds - a.play_time_in_seconds);
   const steamGames = [...games].filter(g => g.shop === "steam")
-    .sort((a, b) => b.play_time_in_seconds - a.play_time_in_seconds);
-  const steamHours = Math.floor(steamGames.reduce((s, g) => s + g.play_time_in_seconds, 0) / 3600);
+    .sort((a, b) => (b.is_pinned ?? 0) - (a.is_pinned ?? 0) || b.play_time_in_seconds - a.play_time_in_seconds);
+
 
   return page(`@${user.username}`, `
     <div class="card wide" style="padding:0;overflow:hidden">

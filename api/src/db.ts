@@ -19,6 +19,7 @@ for (const col of ["steam_id", "steam_api_key", "accent_color", "custom_css"]) {
   try { db.exec(`ALTER TABLE users ADD COLUMN ${col} TEXT`); } catch {}
 }
 try { db.exec(`ALTER TABLE games ADD COLUMN executable_path TEXT`); } catch {}
+try { db.exec(`ALTER TABLE games ADD COLUMN pinned_at INTEGER`); } catch {}
 
 // Fix image URLs stored as absolute paths
 db.exec(`UPDATE users SET profile_image_url = REPLACE(profile_image_url, '/data/images/', '/images/') WHERE profile_image_url LIKE '/data/%'`);

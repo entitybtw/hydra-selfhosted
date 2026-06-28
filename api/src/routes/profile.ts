@@ -85,6 +85,7 @@ function formatGame(g: DbGame) {
     platform: null,
     createdAt: null,
     executablePath: (g as any).executable_path ?? null,
+    pinnedDate: (g as any).pinned_at ? new Date((g as any).pinned_at * 1000) : null,
   };
 }
 
@@ -284,6 +285,32 @@ export async function profileRoutes(app: FastifyInstance) {
       db.prepare(
         "UPDATE games SET play_time_in_seconds = ? WHERE user_id = ? AND object_id = ? AND shop = ?"
       ).run(req.body.playTimeInSeconds, userId, objectId, shop);
+      return {};
+    }
+  );
+
+  app.put(
+    "/profile/games/:shop/:objectId/pin",
+    { preHandler: requireAuth },
+    async (req: FastifyRequest<{ Params: { shop: string; objectId: string } }>) => {
+      const userId = (req as Req).userId;
+      const { shop, objectId } = req.params;
+      const now = Math.floor(Date.now() / 1000);
+      db.prepare("UPDATE games SET is_pinned = 1, pinned_at = ? WHERE user_id = ? AND object_id = ? AND shop = ?")
+        .run(now, userId, objectId, shop);
+      const g = db.prepare("SELECT * FROM games WHERE user_id = ? AND object_id = ? AND shop = ?").get(userId, objectId, shop) as any;
+      return formatGame(g);
+    }
+  );
+
+  app.put(
+    "/profile/games/:shop/:objectId/unpin",
+    { preHandler: requireAuth },
+    async (req: FastifyRequest<{ Params: { shop: string; objectId: string } }>) => {
+      const userId = (req as Req).userId;
+      const { shop, objectId } = req.params;
+      db.prepare("UPDATE games SET is_pinned = 0, pinned_at = NULL WHERE user_id = ? AND object_id = ? AND shop = ?")
+        .run(userId, objectId, shop);
       return {};
     }
   );
