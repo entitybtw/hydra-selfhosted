@@ -353,7 +353,7 @@ function dashboardTabsHtml(hydraGames: DbGame[], steamGames: DbGame[], hasSteam:
     function updateCropTransform() {
       const z = parseFloat(zoomSlider.value);
       const r = parseFloat(rotSlider.value);
-      cropImg.style.transform = \`translate(\${cropOffX}px,\${cropOffY}px) rotate(\${r}deg) scale(\${z})\`;
+      cropImg.style.transform = 'translate('+cropOffX+'px,'+cropOffY+'px) rotate('+r+'deg) scale('+z+')';
     }
     zoomSlider.oninput = updateCropTransform;
     rotSlider.oninput = updateCropTransform;
