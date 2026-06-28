@@ -335,7 +335,7 @@ function dashboardTabsHtml(hydraGames: DbGame[], steamGames: DbGame[], hasSteam:
 
     <script>
     // Avatar overlay hover
-    const avatarWrap = document.querySelector('[onclick="document.getElementById(\\'avatar-input\\').click()"]');
+    const avatarWrap = document.getElementById('avatar-overlay')?.parentElement;
     const overlay = document.getElementById('avatar-overlay');
     if (avatarWrap && overlay) {
       avatarWrap.addEventListener('mouseenter', () => overlay.style.opacity = '1');
