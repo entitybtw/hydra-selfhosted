@@ -20,6 +20,7 @@ interface DbUser {
   custom_css: string | null;
   created_at: number;
   show_recent_activity: number;
+  show_library: number;
   profile_sections_order: string | null;
 }
 
@@ -163,7 +164,7 @@ function loginPage(error?: string, launcher = false) {
   `, "#e0e0e0");
 }
 
-function tabsHtml(hydraGames: DbGame[], steamGames: DbGame[], hasSteam: boolean) {
+function tabsHtml(hydraGames: DbGame[], steamGames: DbGame[], hasSteam: boolean, showRecent = true) {
   const PIN_ICON = `<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="currentColor" style="vertical-align:middle;margin-right:4px;opacity:0.7"><path d="M16 12V4h1V2H7v2h1v8l-2 2v2h5.2v6h1.6v-6H18v-2l-2-2z"/></svg>`;
   const HEART_ICON = `<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="#e05c73" style="vertical-align:middle;margin-left:4px;flex-shrink:0"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg>`;
   const mkRows = (list: DbGame[]) => {
@@ -176,8 +177,7 @@ function tabsHtml(hydraGames: DbGame[], steamGames: DbGame[], hasSteam: boolean)
   const mkPanel = (id: string, list: DbGame[]) => `
     <div class="tab-panel" id="tab-${id}" style="display:none">
       <table><thead><tr><th>Game</th><th>Playtime</th></tr></thead><tbody>${mkRows(list)}</tbody></table>
-      <h3 style="margin-top:20px">Recent Activity</h3>
-      ${recentActivityHtml(list)}
+      ${showRecent ? `<h3 style="margin-top:20px">Recent Activity</h3>${recentActivityHtml(list)}` : ""}
     </div>`;
 
   return `
@@ -188,8 +188,7 @@ function tabsHtml(hydraGames: DbGame[], steamGames: DbGame[], hasSteam: boolean)
       </div>
       <div class="tab-panel" id="tab-ph-hydra">
         <table><thead><tr><th>Game</th><th>Playtime</th></tr></thead><tbody>${mkRows(hydraGames)}</tbody></table>
-        <h3 style="margin-top:20px">Recent Activity</h3>
-        ${recentActivityHtml(hydraGames)}
+        ${showRecent ? `<h3 style="margin-top:20px">Recent Activity</h3>${recentActivityHtml(hydraGames)}` : ""}
       </div>
       ${hasSteam ? mkPanel("ph-steam", steamGames) : ""}
     </div>
@@ -343,6 +342,10 @@ function dashboardPage(user: DbUser, games: DbGame[], msg?: string, msgType: "ok
           <input type="checkbox" name="show_recent_activity" id="show_recent" value="1"${user.show_recent_activity !== 0 ? " checked" : ""} style="width:auto">
           <label for="show_recent" style="margin:0;cursor:pointer">Show recent activity on public profile</label>
         </div>
+        <div class="field" style="display:flex;align-items:center;gap:8px">
+          <input type="checkbox" name="show_library" id="show_library" value="1"${user.show_library !== 0 ? " checked" : ""} style="width:auto">
+          <label for="show_library" style="margin:0;cursor:pointer">Show library on public profile</label>
+        </div>
         <div class="field">
           <label>Profile sections order <span style="color:var(--sub);font-size:11px">(drag to reorder)</span></label>
           <input type="hidden" name="profile_sections_order" id="sections_order_input" value="${h(user.profile_sections_order || '["recent","library"]')}">
@@ -447,16 +450,7 @@ function publicProfilePage(user: DbUser, games: DbGame[]) {
           <div><span style="color:${accent};font-size:18px;font-weight:bold">${totalHours.toLocaleString()}</span><br><span style="color:var(--sub)">total hours</span></div>
           ${user.steam_id ? `<div><span style="color:${accent};font-size:18px;font-weight:bold">${steamHours.toLocaleString()}</span><br><span style="color:var(--sub)">steam hours</span></div>` : ""}
         </div>
-        ${(() => {
-          const order: string[] = JSON.parse(user.profile_sections_order || '["recent","library"]');
-          const sectionMap: Record<string, string> = {
-            recent: user.show_recent_activity !== 0 ? `
-              <h3 style="font-size:12px;color:var(--sub);text-transform:uppercase;letter-spacing:.08em;margin:20px 0 10px">Recent Activity</h3>
-              ${recentActivityHtml(games)}` : "",
-            library: tabsHtml(hydraGames, steamGames, Boolean(user.steam_id)),
-          };
-          return order.map(k => sectionMap[k] ?? "").join("");
-        })()}
+        ${user.show_library !== 0 ? tabsHtml(hydraGames, steamGames, Boolean(user.steam_id), user.show_recent_activity !== 0) : ""}
         <p style="font-size:11px;color:var(--sub);margin-top:16px">Powered by <a href="https://github.com/entitybtw/hydra-selfhosted">Hydra Self-Hosted</a></p>
       </div>
     </div>
@@ -588,7 +582,7 @@ export async function webRoutes(app: FastifyInstance) {
   }, async (req: FastifyRequest<{ Body: Record<string, string> }>, reply: FastifyReply) => {
     const user = getUserFromCookie(req);
     if (!user) return reply.redirect("/");
-    const { username, display_name, bio, accent_color, accent_color_hex, custom_css, show_recent_activity, profile_sections_order } = req.body ?? {};
+    const { username, display_name, bio, accent_color, accent_color_hex, custom_css, show_recent_activity, show_library, profile_sections_order } = req.body ?? {};
     const accent = (/^#[0-9a-fA-F]{6}$/.test(accent_color_hex ?? "") ? accent_color_hex
       : /^#[0-9a-fA-F]{6}$/.test(accent_color ?? "") ? accent_color : null);
     const newUsername = (username ?? "").replace(/[^a-zA-Z0-9_]/g, "").slice(0, 32) || user.username;
@@ -599,8 +593,8 @@ export async function webRoutes(app: FastifyInstance) {
         return reply.type("text/html").send(dashboardPage(user, games, "Username already taken.", "err"));
       }
     }
-    db.prepare("UPDATE users SET username = ?, display_name = ?, bio = ?, accent_color = ?, custom_css = ?, show_recent_activity = ?, profile_sections_order = ? WHERE id = ?")
-      .run(newUsername, (display_name ?? "").slice(0, 64), (bio ?? "").slice(0, 200), accent, (custom_css ?? "").slice(0, 8000), show_recent_activity === "1" ? 1 : 0, profile_sections_order ?? '["recent","library"]', user.id);
+    db.prepare("UPDATE users SET username = ?, display_name = ?, bio = ?, accent_color = ?, custom_css = ?, show_recent_activity = ?, show_library = ?, profile_sections_order = ? WHERE id = ?")
+      .run(newUsername, (display_name ?? "").slice(0, 64), (bio ?? "").slice(0, 200), accent, (custom_css ?? "").slice(0, 8000), show_recent_activity === "1" ? 1 : 0, show_library === "1" ? 1 : 0, profile_sections_order ?? '["library"]', user.id);
     const updated = db.prepare("SELECT * FROM users WHERE id = ?").get(user.id) as DbUser;
     const games = db.prepare("SELECT * FROM games WHERE user_id = ? AND is_deleted = 0").all(user.id) as DbGame[];
     return reply.type("text/html").send(dashboardPage(updated, games, "Profile updated.", "ok"));

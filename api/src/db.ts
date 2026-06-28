@@ -21,6 +21,7 @@ for (const col of ["steam_id", "steam_api_key", "accent_color", "custom_css"]) {
 try { db.exec(`ALTER TABLE games ADD COLUMN executable_path TEXT`); } catch {}
 try { db.exec(`ALTER TABLE games ADD COLUMN pinned_at INTEGER`); } catch {}
 try { db.exec(`ALTER TABLE users ADD COLUMN show_recent_activity INTEGER NOT NULL DEFAULT 1`); } catch {}
+try { db.exec(`ALTER TABLE users ADD COLUMN show_library INTEGER NOT NULL DEFAULT 1`); } catch {}
 try { db.exec(`ALTER TABLE users ADD COLUMN profile_sections_order TEXT`); } catch {}
 
 // Fix image URLs stored as absolute paths
