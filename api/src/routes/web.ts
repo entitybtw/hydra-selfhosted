@@ -69,19 +69,22 @@ function fmtRelative(unixSec: number | null | undefined): string {
 }
 
 function recentActivityHtml(games: DbGame[]): string {
+  const seen = new Set<string>();
   const recent = [...games]
     .filter(g => g.last_time_played)
     .sort((a, b) => (b.last_time_played ?? 0) - (a.last_time_played ?? 0))
+    .filter(g => { const k = `${g.shop}:${g.object_id}`; if (seen.has(k)) return false; seen.add(k); return true; })
     .slice(0, 5);
-  if (!recent.length) return `<p style="color:var(--sub);font-size:13px">No recent activity.</p>`;
-  return `<ul style="list-style:none;padding:0;margin:0;display:flex;flex-direction:column;gap:8px">` +
+  if (!recent.length) return `<p style="color:var(--sub);font-size:13px;padding:8px 0">No recent activity.</p>`;
+  return `<div style="display:flex;flex-direction:column;gap:2px">` +
     recent.map(g => `
-      <li style="display:flex;align-items:center;gap:10px">
-        <div style="flex:1;min-width:0">
-          <div style="font-size:13px;font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${h(g.title)}</div>
-          <div style="font-size:11px;color:var(--sub)">${fmtHours(g.play_time_in_seconds)} · last played ${fmtRelative(g.last_time_played)}</div>
+      <div style="display:flex;align-items:center;justify-content:space-between;padding:8px 10px;border-radius:6px;transition:background .15s" onmouseover="this.style.background='var(--bg3)'" onmouseout="this.style.background=''">
+        <span style="font-size:13px;font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1;min-width:0">${h(g.title)}</span>
+        <div style="display:flex;gap:16px;flex-shrink:0;margin-left:12px;text-align:right">
+          <span style="font-size:12px;color:var(--sub)">${fmtHours(g.play_time_in_seconds)}</span>
+          <span style="font-size:12px;color:var(--sub);min-width:70px">${fmtRelative(g.last_time_played)}</span>
         </div>
-      </li>`).join("") + `</ul>`;
+      </div>`).join("") + `</div>`;
 }
 
 const CSS = `
@@ -383,6 +386,9 @@ function dashboardPage(user: DbUser, games: DbGame[], msg?: string, msgType: "ok
         <button type="submit">Save &amp; sync Steam now</button>
       </form>
 
+      <h3>Recent Activity</h3>
+      ${recentActivityHtml([...hydraGames, ...steamGames])}
+
       <h3>Library</h3>
       ${dashboardTabsHtml(hydraGames, steamGames, Boolean(user.steam_id))}
 
@@ -456,7 +462,7 @@ function publicProfilePage(user: DbUser, games: DbGame[]) {
           const sectionMap: Record<string, string> = {
             recent: user.show_recent_activity !== 0 ? `
               <h3 style="font-size:12px;color:var(--sub);text-transform:uppercase;letter-spacing:.08em;margin:20px 0 10px">Recent Activity</h3>
-              ${recentActivityHtml([...hydraGames, ...steamGames])}` : "",
+              ${recentActivityHtml(games)}` : "",
             library: tabsHtml(hydraGames, steamGames, Boolean(user.steam_id)),
           };
           return order.map(k => sectionMap[k] ?? "").join("");
