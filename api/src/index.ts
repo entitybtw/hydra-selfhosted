@@ -1,5 +1,6 @@
 import Fastify from "fastify";
 import fastifyCookie from "@fastify/cookie";
+import fastifyMultipart from "@fastify/multipart";
 import { authRoutes } from "./routes/auth";
 import { profileRoutes } from "./routes/profile";
 import { gamesRoutes } from "./routes/games";
@@ -14,6 +15,7 @@ import { startSteamSyncScheduler } from "./steam-sync";
 const app = Fastify({ logger: true });
 
 app.register(fastifyCookie);
+app.register(fastifyMultipart, { limits: { fileSize: 10 * 1024 * 1024 } });
 
 app.addContentTypeParser("application/tar", { parseAs: "buffer" }, (_req, body, done) => {
   done(null, body);

@@ -1,7 +1,9 @@
 import { FastifyInstance, FastifyRequest, FastifyReply } from "fastify";
 import crypto from "node:crypto";
+import fs from "node:fs/promises";
+import path from "node:path";
 import bcrypt from "bcryptjs";
-import { db } from "../db";
+import { db, IMAGES_DIR } from "../db";
 import { signAccess, verifyToken } from "../auth";
 import { syncSteamGames } from "../steam-sync";
 
@@ -135,16 +137,22 @@ function loginPage(error?: string, launcher = false) {
   `, "#e0e0e0");
 }
 
-function tabsHtml(hydraGames: DbGame[], steamGames: DbGame[], hasSteam: boolean) {
+function tabsHtml(hydraGames: DbGame[], steamGames: DbGame[], hasSteam: boolean, editable = false) {
   const PIN_ICON = `<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="currentColor" style="vertical-align:middle;margin-right:4px;opacity:0.7"><path d="M16 12V4h1V2H7v2h1v8l-2 2v2h5.2v6h1.6v-6H18v-2l-2-2z"/></svg>`;
   const HEART_ICON = `<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="#e05c73" style="vertical-align:middle;margin-left:4px;flex-shrink:0"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg>`;
   const mkRows = (list: DbGame[]) => {
     const pinned = list.filter(g => g.is_pinned);
     const rest = list.filter(g => !g.is_pinned);
     const sorted = [...pinned, ...rest];
-    return sorted.slice(0, 100).map(g =>
-      `<tr${g.is_pinned ? ' style="opacity:0.95"' : ""}><td>${g.is_pinned ? PIN_ICON : ""}${h(g.title)}${g.is_favorite ? HEART_ICON : ""}</td><td>${fmtHours(g.play_time_in_seconds)}</td></tr>`
-    ).join("") || `<tr><td colspan="2" style="color:var(--sub)">No games yet.</td></tr>`;
+    return sorted.slice(0, 100).map(g => {
+      const pinBtn = editable ? `
+        <form method="POST" action="/web/${g.is_pinned ? "unpin" : "pin"}" style="display:inline">
+          <input type="hidden" name="shop" value="${h(g.shop)}">
+          <input type="hidden" name="object_id" value="${h(g.object_id)}">
+          <button type="submit" style="background:none;border:none;cursor:pointer;padding:0 0 0 6px;color:${g.is_pinned ? "var(--accent)" : "var(--sub)"};vertical-align:middle" title="${g.is_pinned ? "Unpin" : "Pin"}">${PIN_ICON}</button>
+        </form>` : "";
+      return `<tr><td>${g.is_pinned ? PIN_ICON : ""}${h(g.title)}${g.is_favorite ? HEART_ICON : ""}${pinBtn}</td><td>${fmtHours(g.play_time_in_seconds)}</td></tr>`;
+    }).join("") || `<tr><td colspan="2" style="color:var(--sub)">No games yet.</td></tr>`;
   };
 
   const hydraRows = mkRows(hydraGames);
@@ -219,6 +227,23 @@ function dashboardPage(user: DbUser, games: DbGame[], msg?: string, msgType: "ok
         <button type="submit">Save profile</button>
       </form>
 
+      <h3>Avatar &amp; banner</h3>
+      <form method="POST" action="/web/upload-avatar" enctype="multipart/form-data">
+        <div class="field">
+          <label>Avatar${user.profile_image_url ? ` <img src="${h(user.profile_image_url)}" style="width:32px;height:32px;border-radius:50%;vertical-align:middle;margin-left:6px;object-fit:cover">` : ""}</label>
+          <input type="file" name="image" accept="image/*" required>
+        </div>
+        <button type="submit">Upload avatar</button>
+      </form>
+      <form method="POST" action="/web/upload-banner" enctype="multipart/form-data" style="margin-top:12px">
+        <div class="field">
+          <label>Banner${user.background_image_url ? ` <img src="${h(user.background_image_url)}" style="height:32px;border-radius:4px;vertical-align:middle;margin-left:6px;object-fit:cover;max-width:120px">` : ""}</label>
+          <input type="file" name="image" accept="image/*" required>
+        </div>
+        <button type="submit">Upload banner</button>
+        ${user.background_image_url ? `<button type="button" onclick="fetch('/web/remove-banner',{method:'POST'}).then(()=>location.reload())" style="margin-left:8px;background:var(--bg3);color:var(--sub)">Remove banner</button>` : ""}
+      </form>
+
       <h3>Steam integration</h3>
       <div class="warn">Your Steam API key is stored on this server. Use a dedicated key or one with minimal permissions.</div>
       <form method="POST" action="/web/steam">
@@ -228,7 +253,7 @@ function dashboardPage(user: DbUser, games: DbGame[], msg?: string, msgType: "ok
       </form>
 
       <h3>Library</h3>
-      ${tabsHtml(hydraGames, steamGames, Boolean(user.steam_id))}
+      ${tabsHtml(hydraGames, steamGames, Boolean(user.steam_id), true)}
 
       <h3>API access</h3>
       <p style="font-size:12px;color:var(--sub);margin-bottom:8px">Use this URL in Hydra Launcher settings:</p>
@@ -453,6 +478,60 @@ export async function webRoutes(app: FastifyInstance) {
     db.prepare("UPDATE users SET password_hash = ? WHERE id = ?").run(hashPassword(new_password), user.id);
     const games = db.prepare("SELECT * FROM games WHERE user_id = ? AND is_deleted = 0").all(user.id) as DbGame[];
     return reply.type("text/html").send(dashboardPage(user, games, "Password changed.", "ok"));
+  });
+
+  // Pin / unpin game from dashboard
+  app.post("/web/pin", { config: { rawBody: true } }, async (req: FastifyRequest<{ Body: Record<string, string> }>, reply: FastifyReply) => {
+    const user = getUserFromCookie(req);
+    if (!user) return reply.redirect("/");
+    const { shop, object_id } = req.body ?? {};
+    if (shop && object_id) {
+      const now = Math.floor(Date.now() / 1000);
+      db.prepare("UPDATE games SET is_pinned = 1, pinned_at = ? WHERE user_id = ? AND object_id = ? AND shop = ?").run(now, user.id, object_id, shop);
+    }
+    return reply.redirect("/web/dashboard");
+  });
+
+  app.post("/web/unpin", { config: { rawBody: true } }, async (req: FastifyRequest<{ Body: Record<string, string> }>, reply: FastifyReply) => {
+    const user = getUserFromCookie(req);
+    if (!user) return reply.redirect("/");
+    const { shop, object_id } = req.body ?? {};
+    if (shop && object_id) {
+      db.prepare("UPDATE games SET is_pinned = 0, pinned_at = NULL WHERE user_id = ? AND object_id = ? AND shop = ?").run(user.id, object_id, shop);
+    }
+    return reply.redirect("/web/dashboard");
+  });
+
+  // Upload avatar / banner
+  app.post("/web/upload-avatar", async (req: FastifyRequest, reply: FastifyReply) => {
+    const user = getUserFromCookie(req);
+    if (!user) return reply.redirect("/");
+    const data = await (req as any).file();
+    if (!data) return reply.redirect("/web/dashboard");
+    const ext = (data.mimetype as string).split("/")[1]?.replace("jpeg", "jpg") ?? "jpg";
+    const filename = `${crypto.randomUUID()}.${ext}`;
+    await fs.writeFile(path.join(IMAGES_DIR, filename), await data.toBuffer());
+    db.prepare("UPDATE users SET profile_image_url = ? WHERE id = ?").run(`/images/${filename}`, user.id);
+    return reply.redirect("/web/dashboard");
+  });
+
+  app.post("/web/upload-banner", async (req: FastifyRequest, reply: FastifyReply) => {
+    const user = getUserFromCookie(req);
+    if (!user) return reply.redirect("/");
+    const data = await (req as any).file();
+    if (!data) return reply.redirect("/web/dashboard");
+    const ext = (data.mimetype as string).split("/")[1]?.replace("jpeg", "jpg") ?? "jpg";
+    const filename = `${crypto.randomUUID()}.${ext}`;
+    await fs.writeFile(path.join(IMAGES_DIR, filename), await data.toBuffer());
+    db.prepare("UPDATE users SET background_image_url = ? WHERE id = ?").run(`/images/${filename}`, user.id);
+    return reply.redirect("/web/dashboard");
+  });
+
+  app.post("/web/remove-banner", async (req: FastifyRequest, reply: FastifyReply) => {
+    const user = getUserFromCookie(req);
+    if (!user) return reply.code(401).send();
+    db.prepare("UPDATE users SET background_image_url = NULL WHERE id = ?").run(user.id);
+    return reply.send({ ok: true });
   });
 
   // Logout
