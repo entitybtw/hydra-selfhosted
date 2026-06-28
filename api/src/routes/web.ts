@@ -137,22 +137,16 @@ function loginPage(error?: string, launcher = false) {
   `, "#e0e0e0");
 }
 
-function tabsHtml(hydraGames: DbGame[], steamGames: DbGame[], hasSteam: boolean, editable = false) {
+function tabsHtml(hydraGames: DbGame[], steamGames: DbGame[], hasSteam: boolean) {
   const PIN_ICON = `<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="currentColor" style="vertical-align:middle;margin-right:4px;opacity:0.7"><path d="M16 12V4h1V2H7v2h1v8l-2 2v2h5.2v6h1.6v-6H18v-2l-2-2z"/></svg>`;
   const HEART_ICON = `<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="#e05c73" style="vertical-align:middle;margin-left:4px;flex-shrink:0"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg>`;
   const mkRows = (list: DbGame[]) => {
     const pinned = list.filter(g => g.is_pinned);
     const rest = list.filter(g => !g.is_pinned);
     const sorted = [...pinned, ...rest];
-    return sorted.slice(0, 100).map(g => {
-      const pinBtn = editable ? `
-        <form method="POST" action="/web/${g.is_pinned ? "unpin" : "pin"}" style="display:inline">
-          <input type="hidden" name="shop" value="${h(g.shop)}">
-          <input type="hidden" name="object_id" value="${h(g.object_id)}">
-          <button type="submit" style="background:none;border:none;cursor:pointer;padding:0 0 0 6px;color:${g.is_pinned ? "var(--accent)" : "var(--sub)"};vertical-align:middle" title="${g.is_pinned ? "Unpin" : "Pin"}">${PIN_ICON}</button>
-        </form>` : "";
-      return `<tr><td>${g.is_pinned ? PIN_ICON : ""}${h(g.title)}${g.is_favorite ? HEART_ICON : ""}${pinBtn}</td><td>${fmtHours(g.play_time_in_seconds)}</td></tr>`;
-    }).join("") || `<tr><td colspan="2" style="color:var(--sub)">No games yet.</td></tr>`;
+    return sorted.slice(0, 100).map(g =>
+      `<tr><td>${g.is_pinned ? PIN_ICON : ""}${h(g.title)}${g.is_favorite ? HEART_ICON : ""}</td><td>${fmtHours(g.play_time_in_seconds)}</td></tr>`
+    ).join("") || `<tr><td colspan="2" style="color:var(--sub)">No games yet.</td></tr>`;
   };
 
   const hydraRows = mkRows(hydraGames);
@@ -188,7 +182,58 @@ function tabsHtml(hydraGames: DbGame[], steamGames: DbGame[], hasSteam: boolean,
   `;
 }
 
-function dashboardPage(user: DbUser, games: DbGame[], msg?: string, msgType: "ok"|"err" = "ok") {
+function dashboardTabsHtml(hydraGames: DbGame[], steamGames: DbGame[], hasSteam: boolean) {
+  const PIN_ICON = `<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="currentColor" style="vertical-align:middle;margin-right:4px;opacity:0.7"><path d="M16 12V4h1V2H7v2h1v8l-2 2v2h5.2v6h1.6v-6H18v-2l-2-2z"/></svg>`;
+  const HEART_ICON = `<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="#e05c73" style="vertical-align:middle;margin-left:4px;flex-shrink:0"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg>`;
+  const mkRows = (list: DbGame[]) => {
+    const sorted = [...list.filter(g => g.is_pinned), ...list.filter(g => !g.is_pinned)];
+    return sorted.slice(0, 100).map(g => `
+      <tr>
+        <td>${g.is_pinned ? PIN_ICON : ""}${h(g.title)}${g.is_favorite ? HEART_ICON : ""}</td>
+        <td>${fmtHours(g.play_time_in_seconds)}</td>
+        <td style="text-align:right">
+          <form method="POST" action="/web/${g.is_pinned ? "unpin" : "pin"}" style="display:inline;margin:0">
+            <input type="hidden" name="shop" value="${h(g.shop)}">
+            <input type="hidden" name="object_id" value="${h(g.object_id)}">
+            <button type="submit" style="background:none;border:1px solid var(--bg3);border-radius:4px;cursor:pointer;padding:2px 6px;font-size:11px;color:${g.is_pinned ? "var(--accent)" : "var(--sub)"}">${g.is_pinned ? "Unpin" : "Pin"}</button>
+          </form>
+        </td>
+      </tr>`).join("") || `<tr><td colspan="3" style="color:var(--sub)">No games yet.</td></tr>`;
+  };
+
+  const hydraRows = mkRows(hydraGames);
+  const steamRows = mkRows(steamGames);
+  const steamTab = hasSteam ? `<button class="tab-btn" data-tab="steam">Steam (${steamGames.length})</button>` : "";
+  const steamPanel = hasSteam ? `
+    <div class="tab-panel" id="tab-steam" style="display:none">
+      <table><thead><tr><th>Game</th><th>Playtime</th><th></th></tr></thead><tbody>${steamRows}</tbody></table>
+    </div>` : "";
+
+  return `
+    <div class="tabs" style="margin-top:16px">
+      <div style="display:flex;gap:8px;margin-bottom:12px">
+        <button class="tab-btn active" data-tab="hydra">Hydra (${hydraGames.length})</button>
+        ${steamTab}
+      </div>
+      <div class="tab-panel" id="tab-hydra">
+        <table><thead><tr><th>Game</th><th>Playtime</th><th></th></tr></thead><tbody>${hydraRows}</tbody></table>
+      </div>
+      ${steamPanel}
+    </div>
+    <script>
+      document.querySelectorAll('.tab-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+          document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+          document.querySelectorAll('.tab-panel').forEach(p => p.style.display = 'none');
+          btn.classList.add('active');
+          document.getElementById('tab-' + btn.dataset.tab).style.display = '';
+        });
+      });
+    </script>
+  `;
+}
+
+
   const accent = user.accent_color || "#7b68ee";
   const totalHours = Math.floor(games.reduce((s, g) => s + g.play_time_in_seconds, 0) / 3600);
   const hydraGames = [...games].filter(g => g.shop !== "steam" || !user.steam_id)
@@ -253,7 +298,7 @@ function dashboardPage(user: DbUser, games: DbGame[], msg?: string, msgType: "ok
       </form>
 
       <h3>Library</h3>
-      ${tabsHtml(hydraGames, steamGames, Boolean(user.steam_id), true)}
+      ${dashboardTabsHtml(hydraGames, steamGames, Boolean(user.steam_id))}
 
       <h3>API access</h3>
       <p style="font-size:12px;color:var(--sub);margin-bottom:8px">Use this URL in Hydra Launcher settings:</p>
