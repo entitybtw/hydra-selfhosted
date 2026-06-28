@@ -251,7 +251,7 @@ function publicProfilePage(user: DbUser, games: DbGame[]) {
     .sort((a, b) => (b.is_pinned ?? 0) - (a.is_pinned ?? 0) || b.play_time_in_seconds - a.play_time_in_seconds);
   const steamGames = [...games].filter(g => g.shop === "steam")
     .sort((a, b) => (b.is_pinned ?? 0) - (a.is_pinned ?? 0) || b.play_time_in_seconds - a.play_time_in_seconds);
-
+  const steamHours = Math.floor(steamGames.reduce((s, g) => s + g.play_time_in_seconds, 0) / 3600);
 
   return page(`@${user.username}`, `
     <div class="card wide" style="padding:0;overflow:hidden">
