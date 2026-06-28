@@ -243,12 +243,29 @@ function dashboardTabsHtml(hydraGames: DbGame[], steamGames: DbGame[], hasSteam:
 
   return page("Dashboard", `
     <div class="card wide" style="padding:0;overflow:hidden">
-      ${user.background_image_url ? `<div style="height:140px;background:url('${h(user.background_image_url)}') center/cover no-repeat"></div>` : `<div style="height:60px;background:var(--bg3)"></div>`}
+      <div style="position:relative">
+        ${user.background_image_url
+          ? `<div id="banner" style="height:140px;background:url('${h(user.background_image_url)}') center/cover no-repeat;position:relative"></div>`
+          : `<div id="banner" style="height:80px;background:var(--bg3);position:relative"></div>`}
+        <div style="position:absolute;top:8px;right:8px;display:flex;gap:6px">
+          <label style="cursor:pointer;background:rgba(0,0,0,.55);color:#fff;font-size:11px;padding:4px 10px;border-radius:4px;backdrop-filter:blur(4px)">
+            ${user.background_image_url ? "Change banner" : "Set banner"}
+            <input type="file" accept="image/*" style="display:none" onchange="uploadImg(this,'banner')">
+          </label>
+          ${user.background_image_url ? `<button onclick="removeBanner()" style="background:rgba(0,0,0,.55);color:#fff;font-size:11px;padding:4px 10px;border-radius:4px;border:none;cursor:pointer;backdrop-filter:blur(4px)">Remove</button>` : ""}
+        </div>
+      </div>
       <div style="padding:0 32px 32px">
         <div style="display:flex;align-items:flex-end;gap:16px;margin-top:${user.background_image_url ? "-36px" : "-16px"};margin-bottom:16px;position:relative;z-index:1">
-          ${user.profile_image_url
-            ? `<img src="${h(user.profile_image_url)}" style="width:64px;height:64px;border-radius:50%;border:3px solid var(--bg2);object-fit:cover;flex-shrink:0">`
-            : `<div style="width:64px;height:64px;border-radius:50%;border:3px solid var(--bg2);background:var(--bg3);display:flex;align-items:center;justify-content:center;font-size:24px;flex-shrink:0">⬡</div>`}
+          <div style="position:relative;flex-shrink:0;cursor:pointer" onclick="document.getElementById('avatar-input').click()" title="Change avatar">
+            ${user.profile_image_url
+              ? `<img src="${h(user.profile_image_url)}" id="avatar-preview" style="width:64px;height:64px;border-radius:50%;border:3px solid var(--bg2);object-fit:cover;display:block">`
+              : `<div id="avatar-preview" style="width:64px;height:64px;border-radius:50%;border:3px solid var(--bg2);background:var(--bg3);display:flex;align-items:center;justify-content:center;font-size:24px">⬡</div>`}
+            <div style="position:absolute;inset:0;border-radius:50%;background:rgba(0,0,0,.45);display:flex;align-items:center;justify-content:center;opacity:0;transition:opacity .15s" id="avatar-overlay">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="#fff"><path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zm17.71-10.46a1 1 0 0 0 0-1.41l-2.34-2.34a1 1 0 0 0-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/></svg>
+            </div>
+            <input type="file" id="avatar-input" accept="image/*" style="display:none" onchange="openCrop(this)">
+          </div>
           <div>
             <div style="font-size:18px;color:var(--accent);font-weight:bold">${h(user.display_name || user.username)}</div>
             <div style="font-size:13px;color:var(--sub)">@${h(user.username)} · ${games.length} games · ${totalHours.toLocaleString()}h</div>
@@ -265,28 +282,12 @@ function dashboardTabsHtml(hydraGames: DbGame[], steamGames: DbGame[], hasSteam:
 
       <h3>Profile</h3>
       <form method="POST" action="/web/profile">
+        <div class="field"><label>Username</label><input name="username" value="${h(user.username)}" maxlength="32" pattern="[a-zA-Z0-9_]+" title="Letters, numbers and underscores only"></div>
         <div class="field"><label>Display name</label><input name="display_name" value="${h(user.display_name)}" maxlength="64"></div>
         <div class="field"><label>Bio</label><textarea name="bio" maxlength="200">${h(user.bio)}</textarea></div>
         <div class="field"><label>Accent color</label><div style="display:flex;gap:8px;align-items:center"><input type="color" id="accent_picker" name="accent_color" value="${h(accent)}" style="width:40px;height:32px;padding:2px;cursor:pointer" oninput="document.getElementById('accent_hex').value=this.value"><input id="accent_hex" name="accent_color_hex" value="${h(accent)}" maxlength="7" style="flex:1" placeholder="#7b68ee" oninput="if(/^#[0-9a-fA-F]{6}$/.test(this.value))document.getElementById('accent_picker').value=this.value"></div></div>
         <div class="field"><label>Custom CSS <span style="color:var(--sub);font-size:11px">(applied to dashboard &amp; public profile)</span></label><textarea name="custom_css" rows="6" style="font-family:monospace;font-size:12px" placeholder="/* e.g. body { background: #000; } */">${h(user.custom_css || "")}</textarea></div>
         <button type="submit">Save profile</button>
-      </form>
-
-      <h3>Avatar &amp; banner</h3>
-      <form method="POST" action="/web/upload-avatar" enctype="multipart/form-data">
-        <div class="field">
-          <label>Avatar${user.profile_image_url ? ` <img src="${h(user.profile_image_url)}" style="width:32px;height:32px;border-radius:50%;vertical-align:middle;margin-left:6px;object-fit:cover">` : ""}</label>
-          <input type="file" name="image" accept="image/*" required>
-        </div>
-        <button type="submit">Upload avatar</button>
-      </form>
-      <form method="POST" action="/web/upload-banner" enctype="multipart/form-data" style="margin-top:12px">
-        <div class="field">
-          <label>Banner${user.background_image_url ? ` <img src="${h(user.background_image_url)}" style="height:32px;border-radius:4px;vertical-align:middle;margin-left:6px;object-fit:cover;max-width:120px">` : ""}</label>
-          <input type="file" name="image" accept="image/*" required>
-        </div>
-        <button type="submit">Upload banner</button>
-        ${user.background_image_url ? `<button type="button" onclick="fetch('/web/remove-banner',{method:'POST'}).then(()=>location.reload())" style="margin-left:8px;background:var(--bg3);color:var(--sub)">Remove banner</button>` : ""}
       </form>
 
       <h3>Steam integration</h3>
@@ -311,6 +312,103 @@ function dashboardTabsHtml(hydraGames: DbGame[], steamGames: DbGame[], hasSteam:
       </div>
       </div>
     </div>
+
+    <!-- Crop modal -->
+    <div id="crop-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.8);z-index:1000;align-items:center;justify-content:center">
+      <div style="background:var(--bg2);border-radius:10px;padding:20px;width:340px;max-width:90vw">
+        <div style="font-size:14px;font-weight:600;margin-bottom:12px">Crop avatar</div>
+        <div style="position:relative;width:300px;height:300px;overflow:hidden;border-radius:8px;background:#000;margin:0 auto">
+          <img id="crop-img" style="position:absolute;cursor:move;max-width:none;user-select:none">
+        </div>
+        <div style="display:flex;gap:8px;margin-top:10px;align-items:center">
+          <label style="font-size:11px;color:var(--sub);flex-shrink:0">Zoom</label>
+          <input type="range" id="crop-zoom" min="0.5" max="3" step="0.01" value="1" style="flex:1">
+          <label style="font-size:11px;color:var(--sub);flex-shrink:0">Rotate</label>
+          <input type="range" id="crop-rotate" min="-180" max="180" step="1" value="0" style="flex:1">
+        </div>
+        <div style="display:flex;gap:8px;margin-top:12px;justify-content:flex-end">
+          <button onclick="closeCrop()" style="background:var(--bg3);color:var(--sub)">Cancel</button>
+          <button onclick="applyCrop()">Save avatar</button>
+        </div>
+      </div>
+    </div>
+
+    <script>
+    // Avatar overlay hover
+    const avatarWrap = document.querySelector('[onclick="document.getElementById(\\'avatar-input\\').click()"]');
+    const overlay = document.getElementById('avatar-overlay');
+    if (avatarWrap && overlay) {
+      avatarWrap.addEventListener('mouseenter', () => overlay.style.opacity = '1');
+      avatarWrap.addEventListener('mouseleave', () => overlay.style.opacity = '0');
+    }
+
+    // Crop state
+    let cropOffX = 0, cropOffY = 0, cropDragStart = null;
+    const modal = document.getElementById('crop-modal');
+    const cropImg = document.getElementById('crop-img');
+    const zoomSlider = document.getElementById('crop-zoom');
+    const rotSlider = document.getElementById('crop-rotate');
+    const FRAME = 300;
+
+    function updateCropTransform() {
+      const z = parseFloat(zoomSlider.value);
+      const r = parseFloat(rotSlider.value);
+      cropImg.style.transform = \`translate(\${cropOffX}px,\${cropOffY}px) rotate(\${r}deg) scale(\${z})\`;
+    }
+    zoomSlider.oninput = updateCropTransform;
+    rotSlider.oninput = updateCropTransform;
+
+    cropImg.addEventListener('mousedown', e => { cropDragStart = {x: e.clientX - cropOffX, y: e.clientY - cropOffY}; e.preventDefault(); });
+    document.addEventListener('mousemove', e => { if (!cropDragStart) return; cropOffX = e.clientX - cropDragStart.x; cropOffY = e.clientY - cropDragStart.y; updateCropTransform(); });
+    document.addEventListener('mouseup', () => cropDragStart = null);
+
+    function openCrop(input) {
+      const file = input.files[0]; if (!file) return;
+      const url = URL.createObjectURL(file);
+      cropImg.onload = () => {
+        const nat = Math.min(cropImg.naturalWidth, cropImg.naturalHeight);
+        cropImg.style.width = cropImg.style.height = '300px';
+        cropOffX = 0; cropOffY = 0;
+        zoomSlider.value = 1; rotSlider.value = 0;
+        updateCropTransform();
+      };
+      cropImg.src = url;
+      modal.style.display = 'flex';
+    }
+
+    function closeCrop() { modal.style.display = 'none'; document.getElementById('avatar-input').value = ''; }
+
+    function applyCrop() {
+      const canvas = document.createElement('canvas');
+      canvas.width = canvas.height = FRAME;
+      const ctx = canvas.getContext('2d');
+      ctx.save();
+      ctx.beginPath(); ctx.arc(FRAME/2, FRAME/2, FRAME/2, 0, Math.PI*2); ctx.clip();
+      const z = parseFloat(zoomSlider.value), r = parseFloat(rotSlider.value) * Math.PI / 180;
+      ctx.translate(FRAME/2 + cropOffX, FRAME/2 + cropOffY);
+      ctx.rotate(r); ctx.scale(z, z);
+      ctx.drawImage(cropImg, -cropImg.naturalWidth/2, -cropImg.naturalHeight/2);
+      ctx.restore();
+      canvas.toBlob(blob => {
+        const fd = new FormData(); fd.append('image', blob, 'avatar.png');
+        fetch('/web/upload-avatar', {method:'POST', body: fd})
+          .then(r => r.redirected ? location.href = r.url : location.reload());
+        closeCrop();
+      }, 'image/png');
+    }
+
+    // Banner upload
+    function uploadImg(input, type) {
+      const file = input.files[0]; if (!file) return;
+      const fd = new FormData(); fd.append('image', file);
+      fetch('/web/upload-banner', {method:'POST', body: fd})
+        .then(r => r.redirected ? location.href = r.url : location.reload());
+    }
+
+    function removeBanner() {
+      fetch('/web/remove-banner', {method:'POST'}).then(() => location.reload());
+    }
+    </script>
   `, accent, user.custom_css || "");
 }
 
@@ -475,11 +573,19 @@ export async function webRoutes(app: FastifyInstance) {
   }, async (req: FastifyRequest<{ Body: Record<string, string> }>, reply: FastifyReply) => {
     const user = getUserFromCookie(req);
     if (!user) return reply.redirect("/");
-    const { display_name, bio, accent_color, accent_color_hex, custom_css } = req.body ?? {};
+    const { username, display_name, bio, accent_color, accent_color_hex, custom_css } = req.body ?? {};
     const accent = (/^#[0-9a-fA-F]{6}$/.test(accent_color_hex ?? "") ? accent_color_hex
       : /^#[0-9a-fA-F]{6}$/.test(accent_color ?? "") ? accent_color : null);
-    db.prepare("UPDATE users SET display_name = ?, bio = ?, accent_color = ?, custom_css = ? WHERE id = ?")
-      .run((display_name ?? "").slice(0, 64), (bio ?? "").slice(0, 200), accent, (custom_css ?? "").slice(0, 8000), user.id);
+    const newUsername = (username ?? "").replace(/[^a-zA-Z0-9_]/g, "").slice(0, 32) || user.username;
+    if (newUsername !== user.username) {
+      const taken = db.prepare("SELECT id FROM users WHERE username = ? AND id != ?").get(newUsername, user.id);
+      if (taken) {
+        const games = db.prepare("SELECT * FROM games WHERE user_id = ? AND is_deleted = 0").all(user.id) as DbGame[];
+        return reply.type("text/html").send(dashboardPage(user, games, "Username already taken.", "err"));
+      }
+    }
+    db.prepare("UPDATE users SET username = ?, display_name = ?, bio = ?, accent_color = ?, custom_css = ? WHERE id = ?")
+      .run(newUsername, (display_name ?? "").slice(0, 64), (bio ?? "").slice(0, 200), accent, (custom_css ?? "").slice(0, 8000), user.id);
     const updated = db.prepare("SELECT * FROM users WHERE id = ?").get(user.id) as DbUser;
     const games = db.prepare("SELECT * FROM games WHERE user_id = ? AND is_deleted = 0").all(user.id) as DbGame[];
     return reply.type("text/html").send(dashboardPage(updated, games, "Profile updated.", "ok"));
