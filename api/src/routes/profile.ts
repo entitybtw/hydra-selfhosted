@@ -511,7 +511,7 @@ export async function profileRoutes(app: FastifyInstance) {
         SELECT COUNT(*) as cnt FROM achievements WHERE user_id = ?
       `).get(req.params.userId) as any;
       return {
-        totalPlayTimeInSeconds: Math.floor(stats?.total_play ?? 0),
+        totalPlayTimeInSeconds: { value: Math.floor(stats?.total_play ?? 0), topPercentile: 100 },
         libraryCount: stats?.cnt ?? 0,
         achievementCount: achievements?.cnt ?? 0,
       };
