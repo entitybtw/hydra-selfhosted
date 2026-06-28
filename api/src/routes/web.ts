@@ -76,15 +76,9 @@ function recentActivityHtml(games: DbGame[]): string {
     .filter(g => { const k = `${g.shop}:${g.object_id}`; if (seen.has(k)) return false; seen.add(k); return true; })
     .slice(0, 5);
   if (!recent.length) return `<p style="color:var(--sub);font-size:13px;padding:8px 0">No recent activity.</p>`;
-  return `<div style="display:flex;flex-direction:column;gap:2px">` +
-    recent.map(g => `
-      <div style="display:flex;align-items:center;justify-content:space-between;padding:8px 10px;border-radius:6px;transition:background .15s" onmouseover="this.style.background='var(--bg3)'" onmouseout="this.style.background=''">
-        <span style="font-size:13px;font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1;min-width:0">${h(g.title)}</span>
-        <div style="display:flex;gap:16px;flex-shrink:0;margin-left:12px;text-align:right">
-          <span style="font-size:12px;color:var(--sub)">${fmtHours(g.play_time_in_seconds)}</span>
-          <span style="font-size:12px;color:var(--sub);min-width:70px">${fmtRelative(g.last_time_played)}</span>
-        </div>
-      </div>`).join("") + `</div>`;
+  return `<table><thead><tr><th>Game</th><th>Playtime</th><th>Last played</th></tr></thead><tbody>` +
+    recent.map(g => `<tr><td>${h(g.title)}</td><td>${fmtHours(g.play_time_in_seconds)}</td><td>${fmtRelative(g.last_time_played)}</td></tr>`).join("") +
+    `</tbody></table>`;
 }
 
 const CSS = `
