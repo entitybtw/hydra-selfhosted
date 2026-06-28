@@ -224,7 +224,6 @@ export async function profileRoutes(app: FastifyInstance) {
         Params: { shop: string; objectId: string };
         Body: {
           playTimeInSeconds?: number;
-          playTimeDeltaInSeconds?: number;
           lastTimePlayed?: string | null;
           title?: string;
           executablePath?: string | null;
@@ -233,13 +232,11 @@ export async function profileRoutes(app: FastifyInstance) {
     ) => {
       const userId = (req as Req).userId;
       const { shop, objectId } = req.params;
-      const { playTimeInSeconds, playTimeDeltaInSeconds, lastTimePlayed, title, executablePath } = req.body;
+      const { playTimeInSeconds, lastTimePlayed, title, executablePath } = req.body;
 
       const existing = db
-        .prepare("SELECT id, play_time_in_seconds FROM games WHERE user_id = ? AND object_id = ? AND shop = ?")
-        .get(userId, objectId, shop) as { id: string; play_time_in_seconds: number } | undefined;
-
-      const lastTimePlayedUnix = lastTimePlayed ? Math.floor(new Date(lastTimePlayed).getTime() / 1000) : null;
+        .prepare("SELECT id FROM games WHERE user_id = ? AND object_id = ? AND shop = ?")
+        .get(userId, objectId, shop);
 
       if (!existing) {
         const id = crypto.randomUUID();
@@ -251,26 +248,16 @@ export async function profileRoutes(app: FastifyInstance) {
           objectId,
           shop,
           title ?? objectId,
-          playTimeDeltaInSeconds ?? playTimeInSeconds ?? 0,
-          lastTimePlayedUnix
+          playTimeInSeconds ?? 0,
+          lastTimePlayed ? Math.floor(new Date(lastTimePlayed).getTime() / 1000) : null
         );
       } else {
-        if (playTimeDeltaInSeconds !== undefined) {
-          db.prepare(
-            "UPDATE games SET play_time_in_seconds = play_time_in_seconds + ?, last_time_played = ? WHERE user_id = ? AND object_id = ? AND shop = ?"
-          ).run(
-            playTimeDeltaInSeconds,
-            lastTimePlayedUnix,
-            userId,
-            objectId,
-            shop
-          );
-        } else if (playTimeInSeconds !== undefined)
+        if (playTimeInSeconds !== undefined)
           db.prepare(
             "UPDATE games SET play_time_in_seconds = ?, last_time_played = ? WHERE user_id = ? AND object_id = ? AND shop = ?"
           ).run(
             playTimeInSeconds,
-            lastTimePlayedUnix,
+            lastTimePlayed ? Math.floor(new Date(lastTimePlayed).getTime() / 1000) : null,
             userId,
             objectId,
             shop
