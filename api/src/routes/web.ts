@@ -164,7 +164,7 @@ function loginPage(error?: string, launcher = false) {
   `, "#e0e0e0");
 }
 
-function tabsHtml(hydraGames: DbGame[], steamGames: DbGame[], hasSteam: boolean, showRecent = true) {
+function tabsHtml(hydraGames: DbGame[], steamGames: DbGame[], hasSteam: boolean, showRecent = true, sectionsOrder: string[] = ["games","recent"]) {
   const PIN_ICON = `<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="currentColor" style="vertical-align:middle;margin-right:4px;opacity:0.7"><path d="M16 12V4h1V2H7v2h1v8l-2 2v2h5.2v6h1.6v-6H18v-2l-2-2z"/></svg>`;
   const HEART_ICON = `<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="#e05c73" style="vertical-align:middle;margin-left:4px;flex-shrink:0"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg>`;
   const mkRows = (list: DbGame[]) => {
@@ -174,11 +174,16 @@ function tabsHtml(hydraGames: DbGame[], steamGames: DbGame[], hasSteam: boolean,
     ).join("") || `<tr><td colspan="2" style="color:var(--sub)">No games yet.</td></tr>`;
   };
 
+  const mkContent = (list: DbGame[]) => {
+    const parts: Record<string,string> = {
+      games: `<table><thead><tr><th>Game</th><th>Playtime</th></tr></thead><tbody>${mkRows(list)}</tbody></table>`,
+      recent: showRecent ? `<h3 style="margin-top:20px">Recent Activity</h3>${recentActivityHtml(list)}` : "",
+    };
+    return sectionsOrder.map(k => parts[k] ?? "").join("");
+  };
+
   const mkPanel = (id: string, list: DbGame[]) => `
-    <div class="tab-panel" id="tab-${id}" style="display:none">
-      <table><thead><tr><th>Game</th><th>Playtime</th></tr></thead><tbody>${mkRows(list)}</tbody></table>
-      ${showRecent ? `<h3 style="margin-top:20px">Recent Activity</h3>${recentActivityHtml(list)}` : ""}
-    </div>`;
+    <div class="tab-panel" id="tab-${id}" style="display:none">${mkContent(list)}</div>`;
 
   return `
     <div class="tabs" style="margin-top:16px">
@@ -186,10 +191,7 @@ function tabsHtml(hydraGames: DbGame[], steamGames: DbGame[], hasSteam: boolean,
         <button class="tab-btn active" data-tab="ph-hydra">Hydra (${hydraGames.length})</button>
         ${hasSteam ? `<button class="tab-btn" data-tab="ph-steam">Steam (${steamGames.length})</button>` : ""}
       </div>
-      <div class="tab-panel" id="tab-ph-hydra">
-        <table><thead><tr><th>Game</th><th>Playtime</th></tr></thead><tbody>${mkRows(hydraGames)}</tbody></table>
-        ${showRecent ? `<h3 style="margin-top:20px">Recent Activity</h3>${recentActivityHtml(hydraGames)}` : ""}
-      </div>
+      <div class="tab-panel" id="tab-ph-hydra">${mkContent(hydraGames)}</div>
       ${hasSteam ? mkPanel("ph-steam", steamGames) : ""}
     </div>
     <script>
@@ -347,15 +349,13 @@ function dashboardPage(user: DbUser, games: DbGame[], msg?: string, msgType: "ok
           <label for="show_library" style="margin:0;cursor:pointer">Show library on public profile</label>
         </div>
         <div class="field">
-          <label>Profile sections order <span style="color:var(--sub);font-size:11px">(drag to reorder)</span></label>
-          <input type="hidden" name="profile_sections_order" id="sections_order_input" value="${h(user.profile_sections_order || '["recent","library"]')}">
-          <ul id="sections-list" style="list-style:none;padding:0;margin:0;display:flex;flex-direction:column;gap:6px">${
-            (() => {
-              const order: string[] = JSON.parse(user.profile_sections_order || '["recent","library"]');
-              const labels: Record<string, string> = { recent: "Recent Activity", library: "Library" };
-              return order.map(k => `<li data-key="${k}" style="display:flex;align-items:center;gap:8px;background:var(--bg3);padding:8px 12px;border-radius:6px;cursor:grab;user-select:none"><span style="opacity:.5">⠿</span> ${labels[k] ?? k}</li>`).join("");
-            })()
-          }</ul>
+          <label>Section order inside each tab <span style="color:var(--sub);font-size:11px">(drag to reorder)</span></label>
+          <input type="hidden" name="profile_sections_order" id="sections_order_input" value="${h(user.profile_sections_order || '["games","recent"]')}">
+          <ul id="sections-list" style="list-style:none;padding:0;margin:0;display:flex;flex-direction:column;gap:6px">${(() => {
+            const order: string[] = (() => { try { return JSON.parse(user.profile_sections_order || '["games","recent"]'); } catch { return ["games","recent"]; } })();
+            const labels: Record<string,string> = { games: "Game list", recent: "Recent Activity" };
+            return order.map(k => `<li data-key="${k}" style="display:flex;align-items:center;gap:8px;background:var(--bg3);padding:8px 12px;border-radius:6px;cursor:grab;user-select:none"><span style="opacity:.5">⠿</span> ${labels[k]??k}</li>`).join("");
+          })()}</ul>
         </div>
         <button type="submit">Save profile</button>
       </form>
@@ -363,12 +363,13 @@ function dashboardPage(user: DbUser, games: DbGame[], msg?: string, msgType: "ok
       (function(){
         const list = document.getElementById('sections-list');
         const inp = document.getElementById('sections_order_input');
+        if (!list || !inp) return;
         let drag = null;
         list.querySelectorAll('li').forEach(el => {
+          el.setAttribute('draggable', 'true');
           el.addEventListener('dragstart', e => { drag = el; el.style.opacity = '.4'; e.dataTransfer.effectAllowed = 'move'; });
           el.addEventListener('dragend', () => { drag.style.opacity = ''; drag = null; updateOrder(); });
-          el.addEventListener('dragover', e => { e.preventDefault(); if (drag && drag !== el) { const r = el.getBoundingClientRect(); if (e.clientY < r.top + r.height / 2) list.insertBefore(drag, el); else list.insertBefore(drag, el.nextSibling); }});
-          el.setAttribute('draggable', 'true');
+          el.addEventListener('dragover', e => { e.preventDefault(); if (drag && drag !== el) { const r = el.getBoundingClientRect(); list.insertBefore(drag, e.clientY < r.top + r.height / 2 ? el : el.nextSibling); }});
         });
         function updateOrder() { inp.value = JSON.stringify([...list.querySelectorAll('li')].map(li => li.dataset.key)); }
       })();
@@ -450,7 +451,7 @@ function publicProfilePage(user: DbUser, games: DbGame[]) {
           <div><span style="color:${accent};font-size:18px;font-weight:bold">${totalHours.toLocaleString()}</span><br><span style="color:var(--sub)">total hours</span></div>
           ${user.steam_id ? `<div><span style="color:${accent};font-size:18px;font-weight:bold">${steamHours.toLocaleString()}</span><br><span style="color:var(--sub)">steam hours</span></div>` : ""}
         </div>
-        ${user.show_library !== 0 ? tabsHtml(hydraGames, steamGames, Boolean(user.steam_id), user.show_recent_activity !== 0) : ""}
+        ${user.show_library !== 0 ? tabsHtml(hydraGames, steamGames, Boolean(user.steam_id), user.show_recent_activity !== 0, (() => { try { return JSON.parse(user.profile_sections_order || '["games","recent"]'); } catch { return ["games","recent"]; } })()) : ""}
         <p style="font-size:11px;color:var(--sub);margin-top:16px">Powered by <a href="https://github.com/entitybtw/hydra-selfhosted">Hydra Self-Hosted</a></p>
       </div>
     </div>
