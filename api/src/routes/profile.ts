@@ -75,7 +75,7 @@ function formatGame(g: DbGame) {
     isPinned: Boolean(g.is_pinned),
     collectionIds: JSON.parse(g.collection_ids || "[]"),
     hasManuallyUpdatedPlaytime: false,
-    iconUrl: isSteam ? `https://shared.steamstatic.com/store_item_assets/steam/apps/${appId}/header.jpg` : null,
+    iconUrl: isSteam ? `https://shared.steamstatic.com/store_item_assets/steam/apps/${appId}/capsule_sm_120.jpg` : null,
     libraryHeroImageUrl: isSteam ? `https://shared.steamstatic.com/store_item_assets/steam/apps/${appId}/library_hero.jpg` : null,
     logoImageUrl: null,
     coverImageUrl: isSteam ? `https://shared.steamstatic.com/store_item_assets/steam/apps/${appId}/library_600x900_2x.jpg` : null,
