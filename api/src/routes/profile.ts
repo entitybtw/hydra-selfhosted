@@ -554,9 +554,7 @@ export async function profileRoutes(app: FastifyInstance) {
   app.get("/profile/notifications", { preHandler: requireAuth }, async () => {
     return { results: [], totalNotifications: 0 };
   });
-  app.get("/profile/notifications/count", { preHandler: requireAuth }, async () => {
-    return { count: 0 };
-  });
+  // /profile/notifications/count is registered in friends.ts
   app.put("/profile/notifications/:id/read", { preHandler: requireAuth }, async () => {
     return {};
   });
