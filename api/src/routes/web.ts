@@ -191,7 +191,12 @@ function dashboardTabsHtml(hydraGames: DbGame[], steamGames: DbGame[], hasSteam:
       <tr>
         <td>${g.is_pinned ? PIN_ICON : ""}${h(g.title)}${g.is_favorite ? HEART_ICON : ""}</td>
         <td>${fmtHours(g.play_time_in_seconds)}</td>
-        <td style="text-align:right">
+        <td style="text-align:right;white-space:nowrap">
+          <form method="POST" action="/web/${g.is_favorite ? "unfavorite" : "favorite"}" style="display:inline;margin:0">
+            <input type="hidden" name="shop" value="${h(g.shop)}">
+            <input type="hidden" name="object_id" value="${h(g.object_id)}">
+            <button type="submit" style="background:none;border:1px solid var(--bg3);border-radius:4px;cursor:pointer;padding:2px 6px;font-size:11px;color:${g.is_favorite ? "#e05c73" : "var(--sub)"}">${g.is_favorite ? "♥" : "♡"}</button>
+          </form>
           <form method="POST" action="/web/${g.is_pinned ? "unpin" : "pin"}" style="display:inline;margin:0">
             <input type="hidden" name="shop" value="${h(g.shop)}">
             <input type="hidden" name="object_id" value="${h(g.object_id)}">
@@ -579,6 +584,22 @@ export async function webRoutes(app: FastifyInstance) {
   });
 
   // Pin / unpin game from dashboard
+  app.post("/web/favorite", { config: { rawBody: true } }, async (req: FastifyRequest<{ Body: Record<string, string> }>, reply: FastifyReply) => {
+    const user = getUserFromCookie(req);
+    if (!user) return reply.redirect("/");
+    const { shop, object_id } = req.body ?? {};
+    if (shop && object_id) db.prepare("UPDATE games SET is_favorite = 1 WHERE user_id = ? AND object_id = ? AND shop = ?").run(user.id, object_id, shop);
+    return reply.redirect("/web/dashboard");
+  });
+
+  app.post("/web/unfavorite", { config: { rawBody: true } }, async (req: FastifyRequest<{ Body: Record<string, string> }>, reply: FastifyReply) => {
+    const user = getUserFromCookie(req);
+    if (!user) return reply.redirect("/");
+    const { shop, object_id } = req.body ?? {};
+    if (shop && object_id) db.prepare("UPDATE games SET is_favorite = 0 WHERE user_id = ? AND object_id = ? AND shop = ?").run(user.id, object_id, shop);
+    return reply.redirect("/web/dashboard");
+  });
+
   app.post("/web/pin", { config: { rawBody: true } }, async (req: FastifyRequest<{ Body: Record<string, string> }>, reply: FastifyReply) => {
     const user = getUserFromCookie(req);
     if (!user) return reply.redirect("/");
