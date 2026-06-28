@@ -549,4 +549,24 @@ export async function profileRoutes(app: FastifyInstance) {
   app.get("/badges", async () => {
     return [];
   });
+
+  // Notification stubs — self-hosted has no social notifications
+  app.get("/profile/notifications", { preHandler: requireAuth }, async () => {
+    return { results: [], totalNotifications: 0 };
+  });
+  app.get("/profile/notifications/count", { preHandler: requireAuth }, async () => {
+    return { count: 0 };
+  });
+  app.put("/profile/notifications/:id/read", { preHandler: requireAuth }, async () => {
+    return {};
+  });
+  app.delete("/profile/notifications/:id", { preHandler: requireAuth }, async () => {
+    return {};
+  });
+  app.put("/profile/notifications/all/read", { preHandler: requireAuth }, async () => {
+    return {};
+  });
+  app.delete("/profile/notifications/all", { preHandler: requireAuth }, async () => {
+    return {};
+  });
 }
