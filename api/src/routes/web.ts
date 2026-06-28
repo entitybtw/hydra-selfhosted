@@ -258,7 +258,7 @@ function dashboardPage(user: DbUser, games: DbGame[], msg?: string, msgType: "ok
     "document.addEventListener('mouseup',()=>{cropDragStart=null;});",
     "function openCrop(input){const file=input.files[0];if(!file)return;const url=URL.createObjectURL(file);cropImg.onload=()=>{cropImg.style.width=cropImg.style.height='300px';cropOffX=0;cropOffY=0;zoomSlider.value=1;rotSlider.value=0;updateCropTransform();};cropImg.src=url;modal.style.display='flex';}",
     "function closeCrop(){modal.style.display='none';document.getElementById('avatar-input').value='';}",
-    "function applyCrop(){const canvas=document.createElement('canvas');canvas.width=canvas.height=FRAME;const ctx=canvas.getContext('2d');ctx.save();ctx.beginPath();ctx.arc(FRAME/2,FRAME/2,FRAME/2,0,Math.PI*2);ctx.clip();const z=parseFloat(zoomSlider.value),r=parseFloat(rotSlider.value)*Math.PI/180;ctx.translate(FRAME/2+cropOffX,FRAME/2+cropOffY);ctx.rotate(r);ctx.scale(z,z);ctx.drawImage(cropImg,-cropImg.naturalWidth/2,-cropImg.naturalHeight/2);ctx.restore();canvas.toBlob(blob=>{const fd=new FormData();fd.append('image',blob,'avatar.png');fetch('/web/upload-avatar',{method:'POST',body:fd}).then(()=>location.reload());closeCrop();},'image/png');}",
+    "function applyCrop(){const canvas=document.createElement('canvas');canvas.width=canvas.height=FRAME;const ctx=canvas.getContext('2d');const z=parseFloat(zoomSlider.value),r=parseFloat(rotSlider.value)*Math.PI/180;ctx.save();ctx.translate(FRAME/2+cropOffX,FRAME/2+cropOffY);ctx.rotate(r);ctx.scale(z,z);ctx.drawImage(cropImg,-cropImg.naturalWidth/2,-cropImg.naturalHeight/2);ctx.restore();canvas.toBlob(blob=>{const fd=new FormData();fd.append('image',blob,'avatar.png');fetch('/web/upload-avatar',{method:'POST',body:fd}).then(()=>location.reload());closeCrop();},'image/png');}",
     "function uploadImg(input){const file=input.files[0];if(!file)return;const fd=new FormData();fd.append('image',file);fetch('/web/upload-banner',{method:'POST',body:fd}).then(()=>location.reload());}",
     "function removeBanner(){fetch('/web/remove-banner',{method:'POST'}).then(()=>location.reload());}",
   ].join("\n");
@@ -281,9 +281,9 @@ function dashboardPage(user: DbUser, games: DbGame[], msg?: string, msgType: "ok
         <div style="display:flex;align-items:flex-end;gap:16px;margin-top:${user.background_image_url ? "-36px" : "-16px"};margin-bottom:16px;position:relative;z-index:1">
           <div style="position:relative;flex-shrink:0;cursor:pointer" onclick="document.getElementById('avatar-input').click()" title="Change avatar">
             ${user.profile_image_url
-              ? `<img src="${h(user.profile_image_url)}" id="avatar-preview" style="width:64px;height:64px;border-radius:50%;border:3px solid var(--bg2);object-fit:cover;display:block">`
-              : `<div id="avatar-preview" style="width:64px;height:64px;border-radius:50%;border:3px solid var(--bg2);background:var(--bg3);display:flex;align-items:center;justify-content:center;font-size:24px">⬡</div>`}
-            <div style="position:absolute;inset:0;border-radius:50%;background:rgba(0,0,0,.45);display:flex;align-items:center;justify-content:center;opacity:0;transition:opacity .15s" id="avatar-overlay">
+              ? `<img src="${h(user.profile_image_url)}" id="avatar-preview" style="width:64px;height:64px;border-radius:10px;border:3px solid var(--bg2);object-fit:cover;display:block">`
+              : `<div id="avatar-preview" style="width:64px;height:64px;border-radius:10px;border:3px solid var(--bg2);background:var(--bg3);display:flex;align-items:center;justify-content:center;font-size:24px">⬡</div>`}
+            <div style="position:absolute;inset:0;border-radius:10px;background:rgba(0,0,0,.45);display:flex;align-items:center;justify-content:center;opacity:0;transition:opacity .15s" id="avatar-overlay">
               <svg width="20" height="20" viewBox="0 0 24 24" fill="#fff"><path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zm17.71-10.46a1 1 0 0 0 0-1.41l-2.34-2.34a1 1 0 0 0-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/></svg>
             </div>
             <input type="file" id="avatar-input" accept="image/*" style="display:none" onchange="openCrop(this)">
