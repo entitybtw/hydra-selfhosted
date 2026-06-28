@@ -19,6 +19,7 @@ interface DbUser {
   accent_color: string | null;
   custom_css: string | null;
   created_at: number;
+  show_recent_activity: number;
 }
 
 interface DbGame {
@@ -29,6 +30,7 @@ interface DbGame {
   is_pinned?: number;
   pinned_at?: number | null;
   is_favorite?: number;
+  last_time_played?: number | null;
 }
 
 function hashPassword(p: string) {
@@ -53,6 +55,32 @@ function fmtHours(seconds: number) {
   if (h >= 1000) return `${h.toLocaleString()}h`;
   const m = Math.floor((seconds % 3600) / 60);
   return h > 0 ? `${h}h ${m}m` : `${m}m`;
+}
+
+function fmtRelative(unixSec: number | null | undefined): string {
+  if (!unixSec) return "";
+  const diff = Math.floor(Date.now() / 1000) - unixSec;
+  if (diff < 60) return "just now";
+  if (diff < 3600) return `${Math.floor(diff / 60)}m ago`;
+  if (diff < 86400) return `${Math.floor(diff / 3600)}h ago`;
+  if (diff < 2592000) return `${Math.floor(diff / 86400)}d ago`;
+  return new Date(unixSec * 1000).toLocaleDateString();
+}
+
+function recentActivityHtml(games: DbGame[]): string {
+  const recent = [...games]
+    .filter(g => g.last_time_played)
+    .sort((a, b) => (b.last_time_played ?? 0) - (a.last_time_played ?? 0))
+    .slice(0, 5);
+  if (!recent.length) return `<p style="color:var(--sub);font-size:13px">No recent activity.</p>`;
+  return `<ul style="list-style:none;padding:0;margin:0;display:flex;flex-direction:column;gap:8px">` +
+    recent.map(g => `
+      <li style="display:flex;align-items:center;gap:10px">
+        <div style="flex:1;min-width:0">
+          <div style="font-size:13px;font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${h(g.title)}</div>
+          <div style="font-size:11px;color:var(--sub)">${fmtHours(g.play_time_in_seconds)} · last played ${fmtRelative(g.last_time_played)}</div>
+        </div>
+      </li>`).join("") + `</ul>`;
 }
 
 const CSS = `
@@ -314,6 +342,10 @@ function dashboardPage(user: DbUser, games: DbGame[], msg?: string, msgType: "ok
         <div class="field"><label>Bio</label><textarea name="bio" maxlength="200">${h(user.bio)}</textarea></div>
         <div class="field"><label>Accent color</label><div style="display:flex;gap:8px;align-items:center"><input type="color" id="accent_picker" name="accent_color" value="${h(accent)}" style="width:40px;height:32px;padding:2px;cursor:pointer" oninput="document.getElementById('accent_hex').value=this.value"><input id="accent_hex" name="accent_color_hex" value="${h(accent)}" maxlength="7" style="flex:1" placeholder="#7b68ee" oninput="if(/^#[0-9a-fA-F]{6}$/.test(this.value))document.getElementById('accent_picker').value=this.value"></div></div>
         <div class="field"><label>Custom CSS <span style="color:var(--sub);font-size:11px">(applied to dashboard &amp; public profile)</span></label><textarea name="custom_css" rows="6" style="font-family:monospace;font-size:12px" placeholder="/* e.g. body { background: #000; } */">${h(user.custom_css || "")}</textarea></div>
+        <div class="field" style="display:flex;align-items:center;gap:8px">
+          <input type="checkbox" name="show_recent_activity" id="show_recent" value="1"${user.show_recent_activity !== 0 ? " checked" : ""} style="width:auto">
+          <label for="show_recent" style="margin:0;cursor:pointer">Show recent activity on public profile</label>
+        </div>
         <button type="submit">Save profile</button>
       </form>
 
@@ -393,6 +425,9 @@ function publicProfilePage(user: DbUser, games: DbGame[]) {
           <div><span style="color:${accent};font-size:18px;font-weight:bold">${totalHours.toLocaleString()}</span><br><span style="color:var(--sub)">total hours</span></div>
           ${user.steam_id ? `<div><span style="color:${accent};font-size:18px;font-weight:bold">${steamHours.toLocaleString()}</span><br><span style="color:var(--sub)">steam hours</span></div>` : ""}
         </div>
+        ${user.show_recent_activity !== 0 ? `
+        <h3 style="font-size:12px;color:var(--sub);text-transform:uppercase;letter-spacing:.08em;margin:20px 0 10px">Recent Activity</h3>
+        ${recentActivityHtml([...hydraGames, ...steamGames])}` : ""}
         ${tabsHtml(hydraGames, steamGames, Boolean(user.steam_id))}
         <p style="font-size:11px;color:var(--sub);margin-top:16px">Powered by <a href="https://github.com/entitybtw/hydra-selfhosted">Hydra Self-Hosted</a></p>
       </div>
@@ -525,7 +560,7 @@ export async function webRoutes(app: FastifyInstance) {
   }, async (req: FastifyRequest<{ Body: Record<string, string> }>, reply: FastifyReply) => {
     const user = getUserFromCookie(req);
     if (!user) return reply.redirect("/");
-    const { username, display_name, bio, accent_color, accent_color_hex, custom_css } = req.body ?? {};
+    const { username, display_name, bio, accent_color, accent_color_hex, custom_css, show_recent_activity } = req.body ?? {};
     const accent = (/^#[0-9a-fA-F]{6}$/.test(accent_color_hex ?? "") ? accent_color_hex
       : /^#[0-9a-fA-F]{6}$/.test(accent_color ?? "") ? accent_color : null);
     const newUsername = (username ?? "").replace(/[^a-zA-Z0-9_]/g, "").slice(0, 32) || user.username;
@@ -536,8 +571,8 @@ export async function webRoutes(app: FastifyInstance) {
         return reply.type("text/html").send(dashboardPage(user, games, "Username already taken.", "err"));
       }
     }
-    db.prepare("UPDATE users SET username = ?, display_name = ?, bio = ?, accent_color = ?, custom_css = ? WHERE id = ?")
-      .run(newUsername, (display_name ?? "").slice(0, 64), (bio ?? "").slice(0, 200), accent, (custom_css ?? "").slice(0, 8000), user.id);
+    db.prepare("UPDATE users SET username = ?, display_name = ?, bio = ?, accent_color = ?, custom_css = ?, show_recent_activity = ? WHERE id = ?")
+      .run(newUsername, (display_name ?? "").slice(0, 64), (bio ?? "").slice(0, 200), accent, (custom_css ?? "").slice(0, 8000), show_recent_activity === "1" ? 1 : 0, user.id);
     const updated = db.prepare("SELECT * FROM users WHERE id = ?").get(user.id) as DbUser;
     const games = db.prepare("SELECT * FROM games WHERE user_id = ? AND is_deleted = 0").all(user.id) as DbGame[];
     return reply.type("text/html").send(dashboardPage(updated, games, "Profile updated.", "ok"));
