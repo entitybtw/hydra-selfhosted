@@ -163,7 +163,7 @@ function loginPage(error?: string, launcher = false) {
   `, "#e0e0e0");
 }
 
-function tabsHtml(hydraGames: DbGame[], steamGames: DbGame[], hasSteam: boolean) {
+function tabsHtml(hydraGames: DbGame[], steamGames: DbGame[], hasSteam: boolean, showRecent = true) {
   const PIN_ICON = `<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="currentColor" style="vertical-align:middle;margin-right:4px;opacity:0.7"><path d="M16 12V4h1V2H7v2h1v8l-2 2v2h5.2v6h1.6v-6H18v-2l-2-2z"/></svg>`;
   const HEART_ICON = `<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="#e05c73" style="vertical-align:middle;margin-left:4px;flex-shrink:0"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg>`;
   const mkRows = (list: DbGame[]) => {
@@ -175,25 +175,34 @@ function tabsHtml(hydraGames: DbGame[], steamGames: DbGame[], hasSteam: boolean)
     ).join("") || `<tr><td colspan="2" style="color:var(--sub)">No games yet.</td></tr>`;
   };
 
+  const mkRecent = (list: DbGame[]) => recentActivityHtml(list);
+
   const hydraRows = mkRows(hydraGames);
   const steamRows = mkRows(steamGames);
 
-  const steamTab = hasSteam ? `<button class="tab-btn" data-tab="steam">Steam (${steamGames.length})</button>` : "";
-  const steamPanel = hasSteam ? `
+  const recentHydraTab = showRecent ? `<button class="tab-btn" data-tab="recent-hydra">Recent</button>` : "";
+  const recentSteamTab = showRecent && hasSteam ? `<button class="tab-btn" data-tab="recent-steam">Steam Recent</button>` : "";
+  const steamLibTab = hasSteam ? `<button class="tab-btn" data-tab="steam">Steam (${steamGames.length})</button>` : "";
+
+  const recentHydraPanel = showRecent ? `
+    <div class="tab-panel" id="tab-recent-hydra" style="display:none">${mkRecent(hydraGames)}</div>` : "";
+  const recentSteamPanel = showRecent && hasSteam ? `
+    <div class="tab-panel" id="tab-recent-steam" style="display:none">${mkRecent(steamGames)}</div>` : "";
+  const steamLibPanel = hasSteam ? `
     <div class="tab-panel" id="tab-steam" style="display:none">
       <table><thead><tr><th>Game</th><th>Playtime</th></tr></thead><tbody>${steamRows}</tbody></table>
     </div>` : "";
 
   return `
     <div class="tabs" style="margin-top:16px">
-      <div style="display:flex;gap:8px;margin-bottom:12px">
+      <div style="display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap">
         <button class="tab-btn active" data-tab="hydra">Hydra (${hydraGames.length})</button>
-        ${steamTab}
+        ${steamLibTab}${recentHydraTab}${recentSteamTab}
       </div>
       <div class="tab-panel" id="tab-hydra">
         <table><thead><tr><th>Game</th><th>Playtime</th></tr></thead><tbody>${hydraRows}</tbody></table>
       </div>
-      ${steamPanel}
+      ${steamLibPanel}${recentHydraPanel}${recentSteamPanel}
     </div>
     <script>
       document.querySelectorAll('.tab-btn').forEach(btn => {
@@ -235,6 +244,8 @@ function dashboardTabsHtml(hydraGames: DbGame[], steamGames: DbGame[], hasSteam:
   const hydraRows = mkRows(hydraGames);
   const steamRows = mkRows(steamGames);
   const steamTab = hasSteam ? `<button class="tab-btn" data-tab="steam">Steam (${steamGames.length})</button>` : "";
+  const recentHydraTab = `<button class="tab-btn" data-tab="dash-recent-hydra">Recent</button>`;
+  const recentSteamTab = hasSteam ? `<button class="tab-btn" data-tab="dash-recent-steam">Steam Recent</button>` : "";
   const steamPanel = hasSteam ? `
     <div class="tab-panel" id="tab-steam" style="display:none">
       <table><thead><tr><th>Game</th><th>Playtime</th><th></th></tr></thead><tbody>${steamRows}</tbody></table>
@@ -242,14 +253,16 @@ function dashboardTabsHtml(hydraGames: DbGame[], steamGames: DbGame[], hasSteam:
 
   return `
     <div class="tabs" style="margin-top:16px">
-      <div style="display:flex;gap:8px;margin-bottom:12px">
+      <div style="display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap">
         <button class="tab-btn active" data-tab="hydra">Hydra (${hydraGames.length})</button>
-        ${steamTab}
+        ${steamTab}${recentHydraTab}${recentSteamTab}
       </div>
       <div class="tab-panel" id="tab-hydra">
         <table><thead><tr><th>Game</th><th>Playtime</th><th></th></tr></thead><tbody>${hydraRows}</tbody></table>
       </div>
       ${steamPanel}
+      <div class="tab-panel" id="tab-dash-recent-hydra" style="display:none">${recentActivityHtml(hydraGames)}</div>
+      ${hasSteam ? `<div class="tab-panel" id="tab-dash-recent-steam" style="display:none">${recentActivityHtml(steamGames)}</div>` : ""}
     </div>
     <script>
       document.querySelectorAll('.tab-btn').forEach(btn => {
@@ -379,9 +392,6 @@ function dashboardPage(user: DbUser, games: DbGame[], msg?: string, msgType: "ok
         <div class="field"><label>Steam Web API Key <a href="https://steamcommunity.com/dev/apikey" target="_blank">↗</a></label><input name="steam_api_key" type="password" value="${user.steam_api_key ? "••••••••" : ""}" placeholder="Leave blank to keep current" autocomplete="off"></div>
         <button type="submit">Save &amp; sync Steam now</button>
       </form>
-
-      <h3>Recent Activity</h3>
-      ${recentActivityHtml([...hydraGames, ...steamGames])}
 
       <h3>Library</h3>
       ${dashboardTabsHtml(hydraGames, steamGames, Boolean(user.steam_id))}
