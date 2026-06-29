@@ -36,11 +36,11 @@ export async function catalogueRoutes(app: FastifyInstance) {
     }, { headers: { "Content-Type": "application/json", "Referer": "https://howlongtobeat.com", "User-Agent": "Mozilla/5.0" }, timeout: 8000 }).catch(() => null);
     const game = res?.data?.data?.[0];
     if (!game) return null;
-    return {
-      mainStory: game.comp_main ? Math.round(game.comp_main / 3600) : null,
-      mainExtra: game.comp_plus ? Math.round(game.comp_plus / 3600) : null,
-      completionist: game.comp_100 ? Math.round(game.comp_100 / 3600) : null,
-    };
+    const categories = [];
+    if (game.comp_main) categories.push({ title: "Main Story", duration: `${Math.round(game.comp_main / 3600)}h`, accuracy: "average" });
+    if (game.comp_plus) categories.push({ title: "Main + Extras", duration: `${Math.round(game.comp_plus / 3600)}h`, accuracy: "average" });
+    if (game.comp_100) categories.push({ title: "Completionist", duration: `${Math.round(game.comp_100 / 3600)}h`, accuracy: "average" });
+    return categories;
   });
 
   // ProtonDB proxy (used when self-hosted protondb toggle is on)
