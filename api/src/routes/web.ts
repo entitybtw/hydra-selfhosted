@@ -29,6 +29,7 @@ interface DbGame {
   title: string;
   play_time_in_seconds: number;
   shop: string;
+  source?: string;
   is_pinned?: number;
   pinned_at?: number | null;
   is_favorite?: number;
@@ -280,9 +281,9 @@ function dashboardTabsHtml(hydraGames: DbGame[], steamGames: DbGame[], hasSteam:
 function dashboardPage(user: DbUser, games: DbGame[], msg?: string, msgType: "ok"|"err" = "ok") {
   const accent = user.accent_color || "#7b68ee";
   const totalHours = Math.floor(games.reduce((s, g) => s + g.play_time_in_seconds, 0) / 3600);
-  const hydraGames = [...games].filter(g => g.shop !== "steam" || !user.steam_id)
+  const hydraGames = [...games].filter(g => g.source !== "steam_sync")
     .sort((a, b) => (b.is_pinned ?? 0) - (a.is_pinned ?? 0) || b.play_time_in_seconds - a.play_time_in_seconds);
-  const steamGames = [...games].filter(g => g.shop === "steam")
+  const steamGames = [...games].filter(g => g.source === "steam_sync")
     .sort((a, b) => (b.is_pinned ?? 0) - (a.is_pinned ?? 0) || b.play_time_in_seconds - a.play_time_in_seconds);
 
   const DASHBOARD_JS = [
@@ -440,9 +441,9 @@ const DEFAULT_PROFILE_CSS = `*{box-sizing:border-box;margin:0;padding:0}body{bac
 function publicProfilePage(user: DbUser, games: DbGame[]) {
   const accent = user.accent_color || "#7b68ee";
   const totalHours = Math.floor(games.reduce((s, g) => s + g.play_time_in_seconds, 0) / 3600);
-  const hydraGames = [...games].filter(g => g.shop !== "steam" || !user.steam_id)
+  const hydraGames = [...games].filter(g => g.source !== "steam_sync")
     .sort((a, b) => (b.is_pinned ?? 0) - (a.is_pinned ?? 0) || b.play_time_in_seconds - a.play_time_in_seconds);
-  const steamGames = [...games].filter(g => g.shop === "steam")
+  const steamGames = [...games].filter(g => g.source === "steam_sync")
     .sort((a, b) => (b.is_pinned ?? 0) - (a.is_pinned ?? 0) || b.play_time_in_seconds - a.play_time_in_seconds);
   const steamHours = Math.floor(steamGames.reduce((s, g) => s + g.play_time_in_seconds, 0) / 3600);
 

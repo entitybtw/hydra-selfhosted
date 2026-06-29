@@ -31,11 +31,12 @@ export const syncSteamGames = async (userId: string) => {
   const games: SteamGame[] = res.data?.response?.games ?? [];
 
   const upsert = db.prepare(`
-    INSERT INTO games (id, user_id, object_id, shop, title, play_time_in_seconds, is_deleted)
-    VALUES (lower(hex(randomblob(16))), ?, ?, 'steam', ?, ?, 0)
+    INSERT INTO games (id, user_id, object_id, shop, title, play_time_in_seconds, is_deleted, source)
+    VALUES (lower(hex(randomblob(16))), ?, ?, 'steam', ?, ?, 0, 'steam_sync')
     ON CONFLICT(user_id, object_id, shop) DO UPDATE SET
       play_time_in_seconds = MAX(play_time_in_seconds, excluded.play_time_in_seconds),
-      title = CASE WHEN title = '' THEN excluded.title ELSE title END
+      title = CASE WHEN title = '' THEN excluded.title ELSE title END,
+      source = 'steam_sync'
   `);
 
   const syncMany = db.transaction((rows: SteamGame[]) => {
