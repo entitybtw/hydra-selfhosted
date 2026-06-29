@@ -36,10 +36,13 @@ export async function catalogueRoutes(app: FastifyInstance) {
     }, { headers: { "Content-Type": "application/json", "Referer": "https://howlongtobeat.com", "User-Agent": "Mozilla/5.0" }, timeout: 8000 }).catch(() => null);
     const game = res?.data?.data?.[0];
     if (!game) return null;
+    const fmt = (secs: number) => secs < 3600
+      ? `${Math.round(secs / 60)} Mins`
+      : `${Math.round(secs / 3600)} Hours`;
     const categories = [];
-    if (game.comp_main) categories.push({ title: "Main Story", duration: `${Math.round(game.comp_main / 3600)}h`, accuracy: "average" });
-    if (game.comp_plus) categories.push({ title: "Main + Extras", duration: `${Math.round(game.comp_plus / 3600)}h`, accuracy: "average" });
-    if (game.comp_100) categories.push({ title: "Completionist", duration: `${Math.round(game.comp_100 / 3600)}h`, accuracy: "average" });
+    if (game.comp_main) categories.push({ title: "Main Story", duration: fmt(game.comp_main), accuracy: "average" });
+    if (game.comp_plus) categories.push({ title: "Main + Extras", duration: fmt(game.comp_plus), accuracy: "average" });
+    if (game.comp_100) categories.push({ title: "Completionist", duration: fmt(game.comp_100), accuracy: "average" });
     return categories;
   });
 
