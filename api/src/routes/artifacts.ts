@@ -106,6 +106,21 @@ export async function artifactsRoutes(app: FastifyInstance) {
     }
   );
 
+  app.get(
+    "/profile/games/artifacts/:id",
+    { preHandler: requireAuth },
+    async (req: FastifyRequest<{ Params: { id: string } }>, reply: FastifyReply) => {
+      const userId = (req as any).userId;
+      const artifact = db
+        .prepare("SELECT * FROM artifacts WHERE id = ? AND user_id = ?")
+        .get(req.params.id, userId) as DbArtifact | undefined;
+
+      if (!artifact) return reply.code(404).send({ error: "not found" });
+
+      return formatArtifact(artifact);
+    }
+  );
+
   app.put(
     "/artifacts/:id/upload",
     async (req: FastifyRequest<{ Params: { id: string }; Querystring: { token: string } }>, reply: FastifyReply) => {
@@ -170,7 +185,7 @@ export async function artifactsRoutes(app: FastifyInstance) {
       if (!artifact) return reply.code(404).send({ error: "not found" });
 
       if (artifact.file_path) {
-        await fs.promises.unlink(artifact.file_path).catch(() => {});
+        await fs.promises.rm(artifact.file_path, { force: true, maxRetries: 3 }).catch((err) => app.log.error(err));
       }
       db.prepare("DELETE FROM artifacts WHERE id = ?").run(req.params.id);
       return {};
@@ -186,7 +201,9 @@ export async function artifactsRoutes(app: FastifyInstance) {
         .prepare("SELECT * FROM artifacts WHERE id = ? AND user_id = ?")
         .get(req.params.id, userId) as DbArtifact | undefined;
       if (!artifact) return reply.code(404).send({ error: "not found" });
-      if (artifact.file_path) await fs.promises.unlink(artifact.file_path).catch(() => {});
+      if (artifact.file_path) {
+        await fs.promises.rm(artifact.file_path, { force: true, maxRetries: 3 }).catch((err) => app.log.error(err));
+      }
       db.prepare("DELETE FROM artifacts WHERE id = ?").run(req.params.id);
       return {};
     }
