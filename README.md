@@ -1,6 +1,6 @@
 # hydra-selfhosted
 
-Self-hosted backend for the [entitybtw/hydra](https://github.com/entitybtw/hydra) fork of Hydra Launcher.
+Self-hosted backend for the [entitybtw/hydra](https://github.com/entitybtw/hydra) fork of Hydra Launcher. forked again to fix certain issues for [AksharLeo/hydra](https://github.com/AksharLeo/hydra).
 
 Run your own server for cloud saves, accounts, profiles, and game data — no Hydra Cloud subscription needed.
 
@@ -42,7 +42,7 @@ Full web interface at `http://your-server:3000`:
 
 ### Big Picture support
 
-The [entitybtw/hydra](https://github.com/entitybtw/hydra) fork's Big Picture mode fully supports self-hosted accounts:
+The [AksharLeo/hydra](https://github.com/AksharLeo/hydra) fork's Big Picture mode fully supports self-hosted accounts:
 
 - **Self-hosted profile in Big Picture** — library, stats, friends, and recent activity all load correctly even when the server does not return optional fields
 - **Dual accounts** — if you also have an official Hydra account, both avatars appear in the Big Picture sidebar; clicking the small official avatar opens that profile without affecting your self-hosted session
@@ -80,7 +80,7 @@ PUBLIC_URL=http://your-server:3000  # shown in the web dashboard
 
 ## Connecting to Hydra Launcher
 
-1. Open the [entitybtw/hydra](https://github.com/entitybtw/hydra) fork
+1. Open the [AksharLeo/hydra](https://github.com/AksharLeo/hydra) fork
 2. **Settings → Integrations → Self-Hosted API**
 3. Enter your server URL and `API_TOKEN`, click **Save**
 4. A login window opens — register or sign in
