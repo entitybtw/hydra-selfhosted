@@ -18,8 +18,15 @@ import { passkeyRoutes } from "./routes/passkeys";
 import { adminRoutes } from "./routes/admin";
 import { startSteamSyncScheduler } from "./steam-sync";
 
+// Single source of truth for the version: works from both src/ (dev) and dist/ (prod).
+const { version }: { version: string } = require("../package.json");
+
 const maxSaveSizeMb = Number(process.env.MAX_SAVE_SIZE_MB) || 50;
 const maxSaveSizeBytes = maxSaveSizeMb * 1024 * 1024;
+
+if (!process.env.API_TOKEN) {
+  console.warn("[hydra] API_TOKEN is not set — falling back to the insecure default 'change-me'. Set it in .env.");
+}
 
 const app = Fastify({ logger: true, bodyLimit: maxSaveSizeBytes });
 
@@ -65,7 +72,7 @@ app.register(docsRoutes);
 app.register(passkeyRoutes);
 app.register(adminRoutes);
 
-app.get("/health", async () => ({ status: "ok" }));
+app.get("/health", async () => ({ status: "ok", version }));
 
 const port = parseInt(process.env.PORT ?? "3000", 10);
 app.listen({ port, host: "0.0.0.0" }).then(() => {
@@ -74,3 +81,10 @@ app.listen({ port, host: "0.0.0.0" }).then(() => {
   app.log.error(err);
   process.exit(1);
 });
+
+// Graceful shutdown so `docker stop` doesn't cut requests mid-flight.
+for (const sig of ["SIGTERM", "SIGINT"] as const) {
+  process.on(sig, () => {
+    app.close().then(() => process.exit(0)).catch(() => process.exit(1));
+  });
+}
