@@ -1,18 +1,13 @@
 services:
   api:
-    build: ./api
+    image: entbtw/hydra-selfhosted:${TAG:-latest}
     ports:
-      - "${PORT:-3005}:3000"
+      - "${PORT:-3000}:3000"
     volumes:
       - ./data:/data
+    env_file:
+      - path: .env
+        required: false
     environment:
-      - API_TOKEN=${API_TOKEN:-change-me}
-      - PORT=3000
-      - SESSION_TTL_DAYS=${SESSION_TTL_DAYS:-30}
-      - PUBLIC_URL=${PUBLIC_URL:-}
-      - MAX_SAVE_SIZE_MB=${MAX_SAVE_SIZE_MB:-50}
-      - INITIAL_ADMIN_USERNAME=${INITIAL_ADMIN_USERNAME:-}
-      - WEBAUTHN_RP_ID=${WEBAUTHN_RP_ID:-}
-      - WEBAUTHN_ORIGIN=${WEBAUTHN_ORIGIN:-}
-      - CORS_ORIGINS=${CORS_ORIGINS:-}
+      PORT: 3000
     restart: unless-stopped
