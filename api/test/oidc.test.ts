@@ -49,6 +49,7 @@ let app: FastifyInstance;
 let db: typeof import("../src/db").db;
 let verifyToken: typeof import("../src/auth").verifyToken;
 const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), "hydra-oidc-"));
+const logs: string[] = [];
 
 before(async () => {
   await new Promise<void>(resolve => idp.listen(0, "127.0.0.1", resolve));
@@ -57,7 +58,7 @@ before(async () => {
   ({ db } = await import("../src/db"));
   ({ verifyToken } = await import("../src/auth"));
   const { webRoutes } = await import("../src/routes/web");
-  app = (await import("fastify")).default();
+  app = (await import("fastify")).default({ logger: { level: "warn", stream: { write: (line: string) => { logs.push(line); } } } });
   app.register((await import("@fastify/cookie")).default);
   app.register(webRoutes);
   await app.ready();
@@ -124,6 +125,15 @@ test("a forged state is rejected without creating a user", async () => {
   assert.equal(res.statusCode, 200);
   assert.match(res.body, /Single sign-on failed/);
   assert.equal((db.prepare("SELECT COUNT(*) AS n FROM users").get() as any).n, before);
+});
+
+test("a provider error, e.g. the user cancelling, fails cleanly and is logged as such", async () => {
+  const start = await app.inject({ url: "/web/oidc/login" });
+  const cookie = start.cookies.find(c => c.name === "oidc_state")!;
+  const state = new URL(start.headers.location as string).searchParams.get("state");
+  const res = await app.inject({ url: `/web/oidc/callback?error=access_denied&state=${state}`, cookies: { oidc_state: cookie.value } });
+  assert.match(res.body, /Single sign-on failed/);
+  assert.match(logs.at(-1)!, /provider returned access_denied/);
 });
 
 test("an SSO-only account cannot sign in with a password", async () => {

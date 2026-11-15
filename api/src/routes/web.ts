@@ -1088,7 +1088,7 @@ export async function webRoutes(app: FastifyInstance) {
   });
 
   app.get("/web/oidc/callback", async (
-    req: FastifyRequest<{ Querystring: { code?: string; state?: string } }>,
+    req: FastifyRequest<{ Querystring: { code?: string; state?: string; error?: string } }>,
     reply: FastifyReply
   ) => {
     if (!OIDC_ENABLED) return reply.code(404).send({ error: "not found" });
@@ -1098,7 +1098,8 @@ export async function webRoutes(app: FastifyInstance) {
 
     let oidc: OidcUser;
     try {
-      if (!state || req.query.state !== state || !req.query.code) throw new Error("missing or mismatched state");
+      if (!state || req.query.state !== state) throw new Error("missing or mismatched state");
+      if (!req.query.code) throw new Error(`provider returned ${req.query.error ?? "no code"}`);
       oidc = await oidcUser(req.query.code, verifier);
     } catch (err) {
       req.log.warn(err, "OIDC sign-in failed");
