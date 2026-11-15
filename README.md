@@ -53,6 +53,7 @@ Example with authentik:
    - Client type: **Confidential**
    - Redirect URI (strict): `<PUBLIC_URL>/web/oidc/callback`, e.g. `https://hydra.example.com/web/oidc/callback`
    - Keep the default scopes (`openid`, `email`, `profile`)
+   - Keep the default subject mode (**Based on the User's hashed ID**): username or email subjects can be changed by users, which would let one user sign in as another
 2. **Applications → Applications → Create**, slug e.g. `hydra`, with that provider. Bind the users or groups allowed to sign in: without bindings, every authentik user can.
 3. Add to `.env` and run `docker compose up -d`:
 
