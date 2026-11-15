@@ -38,6 +38,7 @@ The prebuilt image [`entbtw/hydra-selfhosted`](https://hub.docker.com/r/entbtw/h
 | `PUBLIC_URL` | — | Public URL shown in the web dashboard |
 | `MAX_SAVE_SIZE_MB` | `50` | Cloud save upload limit |
 | `INITIAL_ADMIN_USERNAME` | — | Create this admin user on first run |
+| `INSTANCE_TOKEN` | — | Bearer token for the admin API (`/admin/*`), which is off while unset. If set, it must equal `API_TOKEN` (the launcher checks it too when saving its settings), so every launcher user gets admin API access |
 | `WEBAUTHN_RP_ID` / `WEBAUTHN_ORIGIN` | — | Passkeys: bare domain / full origin URL |
 | `OIDC_ISSUER` | — | Single sign-on: issuer URL of your OpenID Connect provider (see below) |
 | `OIDC_CLIENT_ID` / `OIDC_CLIENT_SECRET` | — | Single sign-on: client credentials from the provider |
