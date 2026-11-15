@@ -5,6 +5,7 @@ import path from "node:path";
 import bcrypt from "bcryptjs";
 import { db, IMAGES_DIR, enforceInitialAdmin } from "../db";
 import { signAccess, verifyToken } from "../auth";
+import { OIDC_ENABLED, oidcAuthUrl, oidcUser, OidcUser } from "../oidc";
 import {
   generateRegistrationOptions,
   verifyRegistrationResponse,
@@ -462,7 +463,11 @@ function getGlobalAccent(): string {
   return (db.prepare("SELECT value FROM settings WHERE key = 'global_accent_color'").get() as { value: string } | undefined)?.value ?? "#d4a574";
 }
 
-function tokenGatePage(error?: string) {
+function ssoButton(launcher: boolean) {
+  return OIDC_ENABLED ? `<a href="/web/oidc/login${launcher ? "?launcher=1" : ""}" class="btn btn-ghost" style="display:inline-block;padding:8px 16px;font-size:0.8rem">Sign in with SSO</a>` : "";
+}
+
+function tokenGatePage(error?: string, launcher = false) {
   const accent = getGlobalAccent();
   return page("Access", `
     <div class="wrap" style="display:flex;align-items:center;justify-content:center;min-height:100vh">
@@ -476,6 +481,7 @@ function tokenGatePage(error?: string) {
         </form>
         <div class="row" style="margin-top:12px">
           <a href="/web/passkey-login" class="btn btn-ghost" style="display:inline-block;padding:8px 16px;font-size:0.8rem">Sign in with Passkey</a>
+          ${ssoButton(launcher)}
         </div>
       </div>
     </div>
@@ -501,6 +507,7 @@ function loginPage(error?: string, launcher = false) {
         </form>
         <div class="row" style="margin-top:12px;justify-content:center">
           <a href="/web/passkey-login${launcher ? "?launcher=1" : ""}" class="btn btn-ghost" style="display:inline-block;padding:8px 16px;font-size:0.8rem">Sign in with Passkey</a>
+          ${ssoButton(launcher)}
         </div>
         <p class="meta">Hydra Launcher self-hosted instance</p>
       </div>
@@ -966,9 +973,9 @@ export async function webRoutes(app: FastifyInstance) {
   app.get("/", async (req: FastifyRequest<{ Querystring: { launcher?: string } }>, reply: FastifyReply) => {
     const user = getUserFromCookie(req);
     if (user) return reply.redirect("/web/dashboard");
-    const gate = (req as any).cookies?.["gate_ok"];
-    if (gate !== "1") return reply.type("text/html").send(tokenGatePage());
     const launcher = (req.query as any).launcher === "1";
+    const gate = (req as any).cookies?.["gate_ok"];
+    if (gate !== "1") return reply.type("text/html").send(tokenGatePage(undefined, launcher));
     return reply.type("text/html").send(loginPage(undefined, launcher));
   });
 
@@ -1056,6 +1063,60 @@ export async function webRoutes(app: FastifyInstance) {
 
     if (!user || !verifyPassword(password, user.password_hash)) {
       return reply.type("text/html").send(loginPage("Invalid username or password.", isLauncher));
+    }
+
+    const token = signAccess(user.id);
+    if (isLauncher) return reply.redirect(`hydra-self-hosted://token/${token}`);
+    return reply
+      .setCookie("web_token", token, { path: "/", httpOnly: true, maxAge: 60 * 60 * 24 * 30 })
+      .redirect("/web/dashboard");
+  });
+
+  app.get("/web/oidc/login", async (req: FastifyRequest, reply: FastifyReply) => {
+    if (!OIDC_ENABLED) return reply.code(404).send({ error: "not found" });
+    const launcher = (req.query as any).launcher === "1";
+    try {
+      const { url, state, verifier } = await oidcAuthUrl();
+      // Binds the callback to this browser and keeps the PKCE verifier out of URLs.
+      return reply
+        .setCookie("oidc_state", [state, verifier, launcher ? "1" : ""].join("."), { path: "/web/oidc", httpOnly: true, sameSite: "lax", maxAge: 60 * 10 })
+        .redirect(url);
+    } catch (err) {
+      req.log.error(err, "OIDC sign-in failed");
+      return reply.type("text/html").send(loginPage("Single sign-on is unavailable.", launcher));
+    }
+  });
+
+  app.get("/web/oidc/callback", async (
+    req: FastifyRequest<{ Querystring: { code?: string; state?: string; error?: string } }>,
+    reply: FastifyReply
+  ) => {
+    if (!OIDC_ENABLED) return reply.code(404).send({ error: "not found" });
+    const [state, verifier, launcher] = ((req as any).cookies?.["oidc_state"] ?? "").split(".");
+    const isLauncher = launcher === "1";
+    reply.clearCookie("oidc_state", { path: "/web/oidc" });
+
+    let oidc: OidcUser;
+    try {
+      if (!state || req.query.state !== state) throw new Error("missing or mismatched state");
+      if (!req.query.code) throw new Error(`provider returned ${req.query.error ?? "no code"}`);
+      oidc = await oidcUser(req.query.code, verifier);
+    } catch (err) {
+      req.log.warn(err, "OIDC sign-in failed");
+      return reply.type("text/html").send(loginPage("Single sign-on failed. Please try again.", isLauncher));
+    }
+
+    let user = db.prepare("SELECT id FROM users WHERE oidc_sub = ?").get(oidc.sub) as { id: string } | undefined;
+    if (!user) {
+      // First sign-in registers a new account; existing local accounts are never matched by name.
+      let username = oidc.username;
+      while (db.prepare("SELECT 1 FROM users WHERE username = ?").get(username)) {
+        username = `${oidc.username.slice(0, 27)}_${crypto.randomBytes(2).toString("hex")}`;
+      }
+      user = { id: crypto.randomUUID() };
+      // Empty password hash: password login never matches an SSO-only account.
+      db.prepare("INSERT INTO users (id, username, password_hash, display_name, oidc_sub) VALUES (?,?,?,?,?)")
+        .run(user.id, username, "", oidc.displayName, oidc.sub);
     }
 
     const token = signAccess(user.id);
