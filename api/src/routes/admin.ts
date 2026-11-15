@@ -9,7 +9,10 @@ function hashPassword(password: string): string {
 
 function verifyInstanceToken(req: FastifyRequest, reply: FastifyReply): boolean {
   const token = process.env.INSTANCE_TOKEN;
-  if (!token) return true;
+  if (!token) {
+    reply.code(403).send({ error: "admin API disabled: INSTANCE_TOKEN is not set" });
+    return false;
+  }
 
   const authHeader = req.headers.authorization;
   if (!authHeader?.startsWith("Bearer ")) {
