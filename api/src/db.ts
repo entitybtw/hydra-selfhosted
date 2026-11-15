@@ -138,6 +138,8 @@ try { db.exec(`UPDATE users SET background_image_url = REPLACE(background_image_
 
 try { db.exec(`ALTER TABLE users ADD COLUMN roles TEXT`); } catch {}
 try { db.exec(`ALTER TABLE users ADD COLUMN is_banned INTEGER NOT NULL DEFAULT 0`); } catch {}
+try { db.exec(`ALTER TABLE users ADD COLUMN oidc_sub TEXT`); } catch {}
+db.exec(`CREATE UNIQUE INDEX IF NOT EXISTS idx_users_oidc_sub ON users (oidc_sub)`);
 
 // Cloud Saves v2 tables
 db.exec(`
