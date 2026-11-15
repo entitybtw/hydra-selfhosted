@@ -7,6 +7,17 @@ function hashPassword(password: string): string {
   return bcrypt.hashSync(password, 10);
 }
 
+// This API speaks a single role; users keep a JSON roles array, as the web admin panel writes it.
+const ROLES = ["admin", "user"];
+
+function roleOf(roles: string | null): string {
+  try {
+    const parsed = JSON.parse(roles || "[]");
+    if (Array.isArray(parsed) && parsed.includes("admin")) return "admin";
+  } catch {}
+  return "user";
+}
+
 function verifyInstanceToken(req: FastifyRequest, reply: FastifyReply): boolean {
   const token = process.env.INSTANCE_TOKEN;
   if (!token) {
@@ -35,7 +46,8 @@ export async function adminRoutes(app: FastifyInstance) {
 
     const userCount = (db.prepare("SELECT COUNT(*) as count FROM users").get() as any).count;
     const gameCount = (db.prepare("SELECT COUNT(*) as count FROM games").get() as any).count;
-    const saveCount = (db.prepare("SELECT COUNT(*) as count FROM cloud_saves").get() as any).count ?? 0;
+    // Saves live in artifacts (backups) and cs_snapshots (Saves v2).
+    const saveCount = (db.prepare("SELECT (SELECT COUNT(*) FROM artifacts) + (SELECT COUNT(*) FROM cs_snapshots) as count").get() as any).count;
 
     return { users: userCount, games: gameCount, saves: saveCount };
   });
@@ -44,18 +56,21 @@ export async function adminRoutes(app: FastifyInstance) {
     if (!verifyInstanceToken(req, reply)) return;
 
     const users = db.prepare(
-      "SELECT id, username, display_name, role, created_at, steam_id FROM users ORDER BY created_at DESC"
-    ).all();
+      "SELECT id, username, display_name, roles, created_at, steam_id FROM users ORDER BY created_at DESC"
+    ).all() as { roles: string | null }[];
 
-    return { users };
+    return { users: users.map(({ roles, ...user }) => ({ ...user, role: roleOf(roles) })) };
   });
 
   app.post("/admin/users", async (req: FastifyRequest<{ Body: { username: string; password: string; role?: string } }>, reply: FastifyReply) => {
     if (!verifyInstanceToken(req, reply)) return;
 
-    const { username, password, role } = req.body;
+    const { username, password, role = "user" } = req.body;
     if (!username || !password) {
       return reply.code(400).send({ error: "username and password required" });
+    }
+    if (!ROLES.includes(role)) {
+      return reply.code(400).send({ error: "role must be admin or user" });
     }
 
     const existing = db.prepare("SELECT id FROM users WHERE username = ?").get(username);
@@ -65,10 +80,10 @@ export async function adminRoutes(app: FastifyInstance) {
 
     const id = crypto.randomUUID();
     db.prepare(
-      "INSERT INTO users (id, username, password_hash, display_name, role) VALUES (?, ?, ?, ?, ?)"
-    ).run(id, username, hashPassword(password), username, role ?? "user");
+      "INSERT INTO users (id, username, password_hash, display_name, roles) VALUES (?, ?, ?, ?, ?)"
+    ).run(id, username, hashPassword(password), username, JSON.stringify(role === "admin" ? ["admin"] : []));
 
-    return { id, username, role: role ?? "user" };
+    return { id, username, role };
   });
 
   app.put("/admin/users/:id", async (req: FastifyRequest<{ Params: { id: string }; Body: { username?: string; password?: string; role?: string } }>, reply: FastifyReply) => {
@@ -76,6 +91,9 @@ export async function adminRoutes(app: FastifyInstance) {
 
     const { id } = req.params;
     const { username, password, role } = req.body;
+    if (role !== undefined && !ROLES.includes(role)) {
+      return reply.code(400).send({ error: "role must be admin or user" });
+    }
 
     const user = db.prepare("SELECT id FROM users WHERE id = ?").get(id);
     if (!user) {
@@ -101,8 +119,8 @@ export async function adminRoutes(app: FastifyInstance) {
       values.push(hashPassword(password));
     }
     if (role) {
-      updates.push("role = ?");
-      values.push(role);
+      updates.push("roles = ?");
+      values.push(JSON.stringify(role === "admin" ? ["admin"] : []));
     }
 
     if (updates.length === 0) {
