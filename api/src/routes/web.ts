@@ -981,7 +981,9 @@ export async function webRoutes(app: FastifyInstance) {
 
   app.get("/web/passkey-login", async (req: FastifyRequest, reply: FastifyReply) => {
     const launcher = (req.query as any).launcher === "1";
-    const callbackPort = (req.query as any).callback_port as string | undefined;
+    const port = (req.query as any).callback_port;
+    // The port is written into the page's inline script, so anything but digits is ignored.
+    const callbackPort = /^\d{1,5}$/.test(port) ? (port as string) : undefined;
     return reply.type("text/html").send(passkeyLoginPage(launcher, callbackPort));
   });
 
