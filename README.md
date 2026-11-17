@@ -37,7 +37,7 @@ The prebuilt image [`entbtw/hydra-selfhosted`](https://hub.docker.com/r/entbtw/h
 | `SESSION_TTL_DAYS` | `30` | Launcher session duration |
 | `PUBLIC_URL` | — | Public URL shown in the web dashboard |
 | `MAX_SAVE_SIZE_MB` | `50` | Cloud save upload limit |
-| `INITIAL_ADMIN_USERNAME` | — | Create this admin user on first run |
+| `INITIAL_ADMIN_USERNAME` | — | While the server has no admin, the account with this username becomes admin. The account is not created for you: register it yourself right after the first start, because whoever registers the name first gets the role. Unset, the first registered user becomes admin |
 | `INSTANCE_TOKEN` | — | Bearer token for the admin API (`/admin/*`), which is off while unset. If set, it must equal `API_TOKEN` (the launcher checks it too when saving its settings), so every launcher user gets admin API access |
 | `WEBAUTHN_RP_ID` / `WEBAUTHN_ORIGIN` | — | Passkeys: bare domain / full origin URL |
 | `OIDC_ISSUER` | — | Single sign-on: issuer URL of your OpenID Connect provider (see below) |
